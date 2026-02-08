@@ -29,6 +29,8 @@ class Lighting_Configurator
         add_action('wp_ajax_nopriv_lc_get_recommendations', array($this, 'ajax_get_recommendations'));
         add_action('wp_ajax_lc_get_cart_map', array($this, 'ajax_get_cart_map'));
         add_action('wp_ajax_nopriv_lc_get_cart_map', array($this, 'ajax_get_cart_map'));
+        add_action('wp_ajax_lc_get_product_modal', array($this, 'ajax_get_product_modal'));
+        add_action('wp_ajax_nopriv_lc_get_product_modal', array($this, 'ajax_get_product_modal'));
 
         $this->register_taxonomy_media_fields(Lighting_Configurator_Taxonomies::TAX_ROOM);
         $this->register_taxonomy_media_fields(Lighting_Configurator_Taxonomies::TAX_STYLE);
@@ -415,6 +417,55 @@ class Lighting_Configurator
         wp_send_json_success(array(
             'cart_map' => $this->get_cart_map(),
         ));
+    }
+
+    public function ajax_get_product_modal()
+    {
+        check_ajax_referer('lighting_configurator', 'nonce');
+
+        $product_id = isset($_POST['product_id']) ? absint($_POST['product_id']) : 0;
+        if (!$product_id) {
+            wp_send_json_error(array('message' => 'Invalid product.'));
+        }
+
+        $product = wc_get_product($product_id);
+        if (!$product) {
+            wp_send_json_error(array('message' => 'Product not found.'));
+        }
+
+        $post = get_post($product_id);
+        $short_desc = $post ? apply_filters('woocommerce_short_description', $post->post_excerpt) : '';
+        $long_desc = $post ? apply_filters('the_content', $post->post_content) : '';
+        $categories = wc_get_product_category_list($product_id, ', ');
+        $permalink = get_permalink($product_id);
+
+        ob_start();
+        ?>
+        <div class="lc-modal-product">
+            <div class="lc-modal-media"><?php echo $product->get_image('large'); ?></div>
+            <div class="lc-modal-content">
+                <h3 class="lc-modal-title"><?php echo esc_html($product->get_name()); ?></h3>
+                <div class="lc-modal-price"><?php echo wp_kses_post($product->get_price_html()); ?></div>
+                <?php if ($categories) : ?>
+                    <div class="lc-modal-categories"><?php echo wp_kses_post($categories); ?></div>
+                <?php endif; ?>
+                <?php if ($short_desc) : ?>
+                    <div class="lc-modal-desc"><?php echo wp_kses_post($short_desc); ?></div>
+                <?php endif; ?>
+            </div>
+            <?php if ($long_desc) : ?>
+                <div class="lc-modal-long"><?php echo wp_kses_post($long_desc); ?></div>
+            <?php endif; ?>
+            <div class="lc-modal-footer">
+                <a class="lc-modal-link" href="<?php echo esc_url($permalink); ?>" target="_blank" rel="noopener">
+                    <?php echo esc_html__('Mergi la pagina produsului', 'lighting-configurator'); ?>
+                </a>
+            </div>
+        </div>
+        <?php
+        $html = ob_get_clean();
+
+        wp_send_json_success(array('html' => $html));
     }
 
     private function sanitize_id_list($items)

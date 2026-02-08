@@ -272,4 +272,13 @@ if (!defined('ABSPATH')) {
             </div>
         </section>
     </div>
+    <div class="lc-modal" aria-hidden="true">
+        <div class="lc-modal-overlay"></div>
+        <div class="lc-modal-dialog" role="dialog" aria-modal="true">
+            <button class="lc-modal-close" type="button" aria-label="<?php echo esc_attr__('Închide', 'lighting-configurator'); ?>">×</button>
+            <div class="lc-modal-body">
+                <div class="lc-modal-loading"><?php echo esc_html__('Se încarcă...', 'lighting-configurator'); ?></div>
+            </div>
+        </div>
+    </div>
 </section>

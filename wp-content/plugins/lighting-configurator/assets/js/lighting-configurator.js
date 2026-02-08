@@ -247,6 +247,16 @@
         updateSummary($(this).closest('.lc-configurator'));
     });
 
+    $(document).on('click', '.lc-reco-thumb, .lc-reco-name', function (e) {
+        e.preventDefault();
+        var $card = $(this).closest('.lc-reco-card');
+        var productId = $card.data('product-id');
+        if (!productId) {
+            return;
+        }
+        openProductModal($card.closest('.lc-configurator'), productId);
+    });
+
     $(document).on('click', '.lc-style', function () {
         var $container = $(this).closest('[data-group]');
         if (!$container.length) {
@@ -334,6 +344,18 @@
         });
     });
 
+    $(document).on('click', '.lc-modal-close, .lc-modal-overlay', function () {
+        closeProductModal($(this).closest('.lc-configurator'));
+    });
+
+    $(document).on('keydown', function (e) {
+        if (e.key === 'Escape') {
+            $('.lc-modal.is-open').each(function () {
+                closeProductModal($(this).closest('.lc-configurator'));
+            });
+        }
+    });
+
     function addToCartAjax(productId, $configurator, $card) {
         if (typeof wc_add_to_cart_params === 'undefined') {
             window.location.href = '/?add-to-cart=' + productId;
@@ -389,12 +411,15 @@
         if (!$configurator || !$configurator.length) {
             return;
         }
+        if (typeof LightingConfiguratorData === 'undefined') {
+            return;
+        }
         $.ajax({
             type: 'POST',
-            url: lightingConfigurator.ajaxUrl,
+            url: LightingConfiguratorData.ajaxUrl,
             data: {
                 action: 'lc_get_cart_map',
-                nonce: lightingConfigurator.nonce,
+                nonce: LightingConfiguratorData.nonce,
             },
             success: function (response) {
                 if (!response || !response.success) {
@@ -448,5 +473,51 @@
         }
         var addToCartUrl = $card.data('add-to-cart') || $btn.data('add-to-cart') || '#';
         $btn.removeClass('lc-reco-remove').attr('href', addToCartUrl).text('Add to cart');
+    }
+
+    function openProductModal($configurator, productId) {
+        if (!$configurator || !$configurator.length) {
+            return;
+        }
+        var $modal = $configurator.find('.lc-modal');
+        if (!$modal.length) {
+            return;
+        }
+        var $body = $modal.find('.lc-modal-body');
+        $body.html('<div class="lc-modal-loading">Se încarcă...</div>');
+        $modal.addClass('is-open').attr('aria-hidden', 'false');
+        $('body').addClass('lc-modal-open');
+
+        if (typeof LightingConfiguratorData === 'undefined') {
+            return;
+        }
+        $.ajax({
+            type: 'POST',
+            url: LightingConfiguratorData.ajaxUrl,
+            data: {
+                action: 'lc_get_product_modal',
+                nonce: LightingConfiguratorData.nonce,
+                product_id: productId,
+            },
+            success: function (response) {
+                if (!response || !response.success || !response.data || !response.data.html) {
+                    $body.html('<div class="lc-modal-loading">Nu am putut încărca produsul.</div>');
+                    return;
+                }
+                $body.html(response.data.html);
+            },
+            error: function () {
+                $body.html('<div class="lc-modal-loading">Nu am putut încărca produsul.</div>');
+            }
+        });
+    }
+
+    function closeProductModal($configurator) {
+        if (!$configurator || !$configurator.length) {
+            return;
+        }
+        var $modal = $configurator.find('.lc-modal');
+        $modal.removeClass('is-open').attr('aria-hidden', 'true');
+        $('body').removeClass('lc-modal-open');
     }
 })(jQuery);
