@@ -424,8 +424,30 @@
 
 .lc-reco-carousel {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--lc-reco-cols, 4), minmax(0, 1fr));
     gap: 14px;
+}
+
+.lc-complementary-carousel {
+    display: grid;
+    grid-template-columns: repeat(var(--lc-reco-cols, 4), minmax(0, 1fr));
+    gap: 14px;
+}
+
+.lc-reco-empty {
+    display: none;
+    margin: 0;
+    color: var(--lc-ink-soft);
+    font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+    font-size: 14px;
+}
+
+.lc-complementary-empty {
+    display: none;
+    margin: 0;
+    color: var(--lc-ink-soft);
+    font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+    font-size: 14px;
 }
 
 .lc-reco-card {
@@ -597,6 +619,10 @@
     }
 
     .lc-reco-carousel {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .lc-complementary-carousel {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

@@ -31,6 +31,10 @@
 
     function initConfigurator($configurator) {
         $configurator.data('totalSteps', $configurator.find('.lc-step').length);
+        var countAttr = parseInt($configurator.data('visible-count'), 10);
+        if (!isNaN(countAttr) && countAttr > 0) {
+            $configurator[0].style.setProperty('--lc-reco-cols', countAttr);
+        }
         setActiveStep($configurator, 1);
     }
 
@@ -94,37 +98,19 @@
         updateRecommendations($configurator);
     }
 
-    function parseIds(value) {
-        if (!value) {
-            return [];
-        }
-        return value
-            .toString()
-            .split(',')
-            .map(function (v) { return parseInt(v, 10); })
-            .filter(function (v) { return !isNaN(v); });
-    }
-
-    function matchesAny(selected, available) {
-        if (!selected.length) {
-            return true;
-        }
-        for (var i = 0; i < selected.length; i++) {
-            if (available.indexOf(selected[i]) !== -1) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     function updateRecommendations($configurator) {
+        if (typeof LightingConfiguratorData === 'undefined') {
+            return;
+        }
+
         var rooms = $configurator.find('[data-step="1"] .lc-card.is-selected').map(function () {
             return parseInt($(this).data('term-id'), 10);
         }).get();
         var styles = $configurator.find('[data-step="3"] .lc-card.is-selected').map(function () {
             return parseInt($(this).data('term-id'), 10);
         }).get();
-        var fixtureType = $configurator.find('[data-group="fixture-type"] .lc-style.is-selected').map(function () {
+        var categories = $configurator.find('[data-group="fixture-type"] .lc-style.is-selected').map(function () {
             return parseInt($(this).data('term-id'), 10);
         }).get();
         var materials = $configurator.find('[data-group="fixture-material"] .lc-style.is-selected').map(function () {
@@ -133,38 +119,119 @@
         var sourceTypes = $configurator.find('[data-group="source-type"] .lc-style.is-selected').map(function () {
             return parseInt($(this).data('term-id'), 10);
         }).get();
+        var temps = $configurator.find('[data-group="light-temp"] .lc-style.is-selected').map(function () {
+            return $(this).text().trim().toLowerCase();
+        }).get();
 
-        var $cards = $configurator.find('.lc-reco-card');
-        $cards.each(function () {
-            var $card = $(this);
-            var productRooms = parseIds($card.data('room'));
-            var productStyles = parseIds($card.data('style'));
-            var productMaterials = parseIds($card.data('material'));
-            var productSources = parseIds($card.data('source'));
-            var productCategories = parseIds($card.data('category'));
-
-            var visible = matchesAny(rooms, productRooms)
-                && matchesAny(styles, productStyles)
-                && matchesAny(materials, productMaterials)
-                && matchesAny(sourceTypes, productSources)
-                && matchesAny(fixtureType, productCategories);
-
-            $card.toggleClass('is-hidden', !visible);
+        $.ajax({
+            url: LightingConfiguratorData.ajaxUrl,
+            method: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'lc_get_recommendations',
+                nonce: LightingConfiguratorData.nonce,
+                rooms: rooms,
+                styles: styles,
+                categories: categories,
+                materials: materials,
+                sources: sourceTypes,
+                temps: temps,
+            },
+            success: function (response) {
+                if (!response || !response.success) {
+                    renderRecommendations($configurator, []);
+                    renderComplementary($configurator, []);
+                    return;
+                }
+                var data = response.data || {};
+                renderRecommendations($configurator, data.recommended || []);
+                renderComplementary($configurator, data.complementary || []);
+            },
+            error: function () {
+                renderRecommendations($configurator, []);
+                renderComplementary($configurator, []);
+            },
         });
-
-        updateCarousel($configurator, 0);
     }
 
-    function updateCarousel($configurator, startIndex) {
-        var $visibleCards = $configurator.find('.lc-reco-card').not('.is-hidden');
+    function renderRecommendations($configurator, items) {
+        var $carousel = $configurator.find('.lc-reco-carousel');
+        var $empty = $configurator.find('.lc-reco-empty');
+        $carousel.empty();
+
+        if (!items.length) {
+            $empty.show();
+            return;
+        }
+
+        $empty.hide();
+        items.forEach(function (item) {
+            var inCart = !!item.in_cart;
+            var card = [
+                '<article class="lc-reco-card', (inCart ? ' is-in-cart' : ''), '" data-product-id="', item.id, '" data-cart-key="', (item.cart_item_key || ''), '" data-add-to-cart="', item.add_to_cart, '">',
+                (inCart ? '' : '<label class="lc-reco-check"><input type="checkbox" class="lc-reco-select" /><span></span></label>'),
+                '<a class="lc-reco-thumb" href="', item.permalink, '">', item.thumbnail, '</a>',
+                '<h5 class="lc-reco-name">', item.title, '</h5>',
+                '<div class="lc-reco-actions"><a class="lc-reco-cart', (inCart ? ' lc-reco-remove' : ''), '" data-add-to-cart="', item.add_to_cart, '" href="', (inCart ? '#' : item.add_to_cart), '">', (inCart ? 'Remove from cart' : 'Add to cart'), '</a></div>',
+                '</article>'
+            ].join('');
+            $carousel.append(card);
+        });
+
+        updateCarousel($carousel.closest('.lc-recommendations'), 0);
+    }
+
+    function renderComplementary($configurator, items) {
+        var $carousel = $configurator.find('.lc-complementary-carousel');
+        var $empty = $configurator.find('.lc-complementary-empty');
+        if (!$carousel.length) {
+            return;
+        }
+        $carousel.empty();
+
+        if (!items.length) {
+            $empty.show();
+            return;
+        }
+
+        $empty.hide();
+        items.forEach(function (item) {
+            var inCart = !!item.in_cart;
+            var card = [
+                '<article class="lc-reco-card', (inCart ? ' is-in-cart' : ''), '" data-product-id="', item.id, '" data-cart-key="', (item.cart_item_key || ''), '" data-add-to-cart="', item.add_to_cart, '">',
+                (inCart ? '' : '<label class="lc-reco-check"><input type="checkbox" class="lc-reco-select" /><span></span></label>'),
+                '<a class="lc-reco-thumb" href="', item.permalink, '">', item.thumbnail, '</a>',
+                '<h5 class="lc-reco-name">', item.title, '</h5>',
+                '<div class="lc-reco-actions"><a class="lc-reco-cart', (inCart ? ' lc-reco-remove' : ''), '" data-add-to-cart="', item.add_to_cart, '" href="', (inCart ? '#' : item.add_to_cart), '">', (inCart ? 'Remove from cart' : 'Add to cart'), '</a></div>',
+                '</article>'
+            ].join('');
+            $carousel.append(card);
+        });
+
+        updateCarousel($carousel.closest('.lc-recommendations'), 0);
+    }
+
+    function updateCarousel($scope, startIndex) {
+        if (!$scope || !$scope.length) {
+            return;
+        }
+        var $visibleCards = $scope.find('.lc-reco-card');
         var total = $visibleCards.length;
+        var visibleCount = 4;
+        var $configurator = $scope.closest('.lc-configurator');
+        if ($configurator.length) {
+            var countAttr = parseInt($configurator.data('visible-count'), 10);
+            if (!isNaN(countAttr) && countAttr > 0) {
+                visibleCount = countAttr;
+            }
+        }
         var index = Math.max(0, startIndex || 0);
-        var maxStart = Math.max(0, total - 5);
+        var maxStart = Math.max(0, total - visibleCount);
         index = Math.min(index, maxStart);
 
-        $configurator.data('carouselIndex', index);
+        $scope.data('carouselIndex', index);
         $visibleCards.removeClass('is-visible');
-        $visibleCards.slice(index, index + 5).addClass('is-visible');
+        $visibleCards.slice(index, index + visibleCount).addClass('is-visible');
     }
 
     $(document).on('click', '.lc-card', function () {
@@ -218,15 +285,15 @@
     });
 
     $(document).on('click', '.lc-reco-prev', function () {
-        var $configurator = $(this).closest('.lc-configurator');
-        var index = $configurator.data('carouselIndex') || 0;
-        updateCarousel($configurator, index - 1);
+        var $scope = $(this).closest('.lc-recommendations');
+        var index = $scope.data('carouselIndex') || 0;
+        updateCarousel($scope, index - 1);
     });
 
     $(document).on('click', '.lc-reco-next', function () {
-        var $configurator = $(this).closest('.lc-configurator');
-        var index = $configurator.data('carouselIndex') || 0;
-        updateCarousel($configurator, index + 1);
+        var $scope = $(this).closest('.lc-recommendations');
+        var index = $scope.data('carouselIndex') || 0;
+        updateCarousel($scope, index + 1);
     });
 
     $(document).on('click', '.lc-reco-bulk', function () {
@@ -237,9 +304,27 @@
             if (!productId) {
                 return;
             }
-            var url = '/?add-to-cart=' + productId;
-            fetch(url, { credentials: 'same-origin' });
+            addToCartAjax(productId, $configurator, $(this));
         });
+    });
+
+    $(document).on('click', '.lc-reco-cart', function (e) {
+        e.preventDefault();
+        var $card = $(this).closest('.lc-reco-card');
+        var productId = $card.data('product-id');
+        if ($(this).hasClass('lc-reco-remove')) {
+            var cartKey = $card.data('cart-key');
+            if (!cartKey) {
+                refreshCartState($card.closest('.lc-configurator'));
+                return;
+            }
+            removeFromCartAjax(cartKey, $card.closest('.lc-configurator'), $card);
+            return;
+        }
+        if (!productId) {
+            return;
+        }
+        addToCartAjax(productId, $card.closest('.lc-configurator'), $card);
     });
 
     $(function () {
@@ -248,4 +333,120 @@
             updateRecommendations($(this));
         });
     });
+
+    function addToCartAjax(productId, $configurator, $card) {
+        if (typeof wc_add_to_cart_params === 'undefined') {
+            window.location.href = '/?add-to-cart=' + productId;
+            return;
+        }
+
+        if ($card && $card.length) {
+            setCardPendingInCart($card);
+        }
+
+        $.ajax({
+            type: 'POST',
+            url: wc_add_to_cart_params.wc_ajax_url.replace('%%endpoint%%', 'add_to_cart'),
+            data: { product_id: productId, quantity: 1 },
+            success: function (response) {
+                if (!response) {
+                    return;
+                }
+                if (response.error && response.product_url) {
+                    window.location = response.product_url;
+                    return;
+                }
+                $(document.body).trigger('added_to_cart', [response.fragments, response.cart_hash]);
+                refreshCartState($configurator);
+            },
+        });
+    }
+
+    function removeFromCartAjax(cartKey, $configurator, $card) {
+        if (typeof wc_add_to_cart_params === 'undefined') {
+            return;
+        }
+
+        if ($card && $card.length) {
+            setCardNotInCart($card);
+        }
+
+        $.ajax({
+            type: 'POST',
+            url: wc_add_to_cart_params.wc_ajax_url.replace('%%endpoint%%', 'remove_from_cart'),
+            data: { cart_item_key: cartKey },
+            success: function (response) {
+                if (!response) {
+                    return;
+                }
+                $(document.body).trigger('removed_from_cart', [response.fragments, response.cart_hash]);
+                refreshCartState($configurator);
+            },
+        });
+    }
+
+    function refreshCartState($configurator) {
+        if (!$configurator || !$configurator.length) {
+            return;
+        }
+        $.ajax({
+            type: 'POST',
+            url: lightingConfigurator.ajaxUrl,
+            data: {
+                action: 'lc_get_cart_map',
+                nonce: lightingConfigurator.nonce,
+            },
+            success: function (response) {
+                if (!response || !response.success) {
+                    return;
+                }
+                var map = (response.data && response.data.cart_map) ? response.data.cart_map : {};
+                applyCartState($configurator, map);
+            },
+        });
+    }
+
+    function applyCartState($configurator, cartMap) {
+        $configurator.find('.lc-reco-card').each(function () {
+            var $card = $(this);
+            var productId = $card.data('product-id');
+            var cartKey = cartMap && cartMap[productId] ? cartMap[productId] : '';
+            if (cartKey) {
+                setCardInCart($card, cartKey);
+            } else {
+                setCardNotInCart($card);
+            }
+        });
+    }
+
+    function setCardInCart($card, cartKey) {
+        $card.addClass('is-in-cart');
+        $card.attr('data-cart-key', cartKey);
+        $card.find('.lc-reco-check').remove();
+        var $btn = $card.find('.lc-reco-cart');
+        if (!$btn.length) {
+            $btn = $('<a class="lc-reco-cart"></a>').appendTo($card.find('.lc-reco-actions'));
+        }
+        $btn.addClass('lc-reco-remove').attr('href', '#').text('Remove from cart');
+    }
+
+    function setCardPendingInCart($card) {
+        setCardInCart($card, '');
+        $card.addClass('is-pending-cart');
+    }
+
+    function setCardNotInCart($card) {
+        $card.removeClass('is-in-cart');
+        $card.removeClass('is-pending-cart');
+        $card.attr('data-cart-key', '');
+        if (!$card.find('.lc-reco-check').length) {
+            $card.prepend('<label class="lc-reco-check"><input type="checkbox" class="lc-reco-select" /><span></span></label>');
+        }
+        var $btn = $card.find('.lc-reco-cart');
+        if (!$btn.length) {
+            $btn = $('<a class="lc-reco-cart"></a>').appendTo($card.find('.lc-reco-actions'));
+        }
+        var addToCartUrl = $card.data('add-to-cart') || $btn.data('add-to-cart') || '#';
+        $btn.removeClass('lc-reco-remove').attr('href', addToCartUrl).text('Add to cart');
+    }
 })(jQuery);

@@ -7,7 +7,9 @@ if (!defined('ABSPATH')) {
 class Lighting_Configurator
 {
     const CATEGORY_META_KEY = '_lc_show_in_configurator';
+    const CATEGORY_COMPLEMENTARY_KEY = '_lc_is_complementary';
     const TERM_ICON_META_KEY = 'thumbnail_id';
+    const PRODUCT_KELVIN_META_KEY = '_lc_kelvins';
 
     public function run()
     {
@@ -21,6 +23,12 @@ class Lighting_Configurator
         add_action('product_cat_edit_form_fields', array($this, 'render_category_meta_edit'), 10, 2);
         add_action('created_product_cat', array($this, 'save_category_meta'));
         add_action('edited_product_cat', array($this, 'save_category_meta'));
+        add_action('woocommerce_product_options_general_product_data', array($this, 'render_product_kelvin_field'));
+        add_action('woocommerce_admin_process_product_object', array($this, 'save_product_kelvin_field'));
+        add_action('wp_ajax_lc_get_recommendations', array($this, 'ajax_get_recommendations'));
+        add_action('wp_ajax_nopriv_lc_get_recommendations', array($this, 'ajax_get_recommendations'));
+        add_action('wp_ajax_lc_get_cart_map', array($this, 'ajax_get_cart_map'));
+        add_action('wp_ajax_nopriv_lc_get_cart_map', array($this, 'ajax_get_cart_map'));
 
         $this->register_taxonomy_media_fields(Lighting_Configurator_Taxonomies::TAX_ROOM);
         $this->register_taxonomy_media_fields(Lighting_Configurator_Taxonomies::TAX_STYLE);
@@ -41,7 +49,13 @@ class Lighting_Configurator
         $materials = $this->get_taxonomy_terms(Lighting_Configurator_Taxonomies::TAX_MATERIAL);
         $source_types = $this->get_taxonomy_terms(Lighting_Configurator_Taxonomies::TAX_SOURCE_TYPE);
         $fixture_categories = $this->get_product_categories();
-        $recommended_products = $this->get_recommended_products();
+        $recommended_products = array();
+        $cart_items = array();
+        if (function_exists('WC') && WC()->cart) {
+            foreach (WC()->cart->get_cart() as $item) {
+                $cart_items[] = (int) $item['product_id'];
+            }
+        }
         ob_start();
         include LIGHTING_CONFIGURATOR_PATH . 'public/partials/shortcode-view.php';
         return ob_get_clean();
@@ -142,6 +156,22 @@ class Lighting_Configurator
             'lighting-configurator',
             'lighting_configurator_general'
         );
+
+        add_settings_field(
+            'allow_broad_recs',
+            __('Permite marjă largă de recomandări', 'lighting-configurator'),
+            array($this, 'render_allow_broad_recs_field'),
+            'lighting-configurator',
+            'lighting_configurator_general'
+        );
+
+        add_settings_field(
+            'visible_count',
+            __('Număr produse afișate per pagină', 'lighting-configurator'),
+            array($this, 'render_visible_count_field'),
+            'lighting-configurator',
+            'lighting_configurator_general'
+        );
     }
 
     public function render_section_description()
@@ -152,15 +182,36 @@ class Lighting_Configurator
     public function render_results_limit_field()
     {
         $options = get_option(LIGHTING_CONFIGURATOR_OPTION, array());
-        $value = isset($options['results_limit']) ? (int) $options['results_limit'] : 3;
-        echo '<input type="number" name="' . esc_attr(LIGHTING_CONFIGURATOR_OPTION) . '[results_limit]" value="' . esc_attr($value) . '" min="1" max="12" />';
-        echo '<p class="description">' . esc_html__('Maximum number of bundles to show in Step 5.', 'lighting-configurator') . '</p>';
+        $value = isset($options['results_limit']) ? (int) $options['results_limit'] : 50;
+        echo '<input type="number" name="' . esc_attr(LIGHTING_CONFIGURATOR_OPTION) . '[results_limit]" value="' . esc_attr($value) . '" min="3" max="300" />';
+        echo '<p class="description">' . esc_html__('Maximum number of products to consider for recommendations (min 3, max 300).', 'lighting-configurator') . '</p>';
+    }
+
+    public function render_allow_broad_recs_field()
+    {
+        $options = get_option(LIGHTING_CONFIGURATOR_OPTION, array());
+        $value = !empty($options['allow_broad_recs']) ? '1' : '0';
+        echo '<label><input type="checkbox" name="' . esc_attr(LIGHTING_CONFIGURATOR_OPTION) . '[allow_broad_recs]" value="1" ' . checked($value, '1', false) . ' /> ';
+        echo esc_html__('Permite marjă largă de recomandări', 'lighting-configurator') . '</label>';
+        echo '<p class="description">' . esc_html__('Extinde recomandările dacă nu există suficiente produse.', 'lighting-configurator') . '</p>';
+    }
+
+    public function render_visible_count_field()
+    {
+        $options = get_option(LIGHTING_CONFIGURATOR_OPTION, array());
+        $value = isset($options['visible_count']) ? (int) $options['visible_count'] : 4;
+        echo '<input type="number" name="' . esc_attr(LIGHTING_CONFIGURATOR_OPTION) . '[visible_count]" value="' . esc_attr($value) . '" min="3" max="6" />';
+        echo '<p class="description">' . esc_html__('Numărul de produse afișate simultan în carusel (min 3).', 'lighting-configurator') . '</p>';
     }
 
     public function sanitize_settings($input)
     {
         $output = array();
-        $output['results_limit'] = isset($input['results_limit']) ? max(1, absint($input['results_limit'])) : 3;
+        $limit = isset($input['results_limit']) ? absint($input['results_limit']) : 50;
+        $output['results_limit'] = min(300, max(3, $limit));
+        $output['allow_broad_recs'] = !empty($input['allow_broad_recs']) ? 1 : 0;
+        $visible = isset($input['visible_count']) ? absint($input['visible_count']) : 4;
+        $output['visible_count'] = min(6, max(3, $visible));
         return $output;
     }
 
@@ -168,7 +219,9 @@ class Lighting_Configurator
     {
         $options = get_option(LIGHTING_CONFIGURATOR_OPTION, array());
         return array(
-            'resultsLimit' => isset($options['results_limit']) ? (int) $options['results_limit'] : 3,
+            'resultsLimit' => isset($options['results_limit']) ? (int) $options['results_limit'] : 50,
+            'allowBroadRecs' => !empty($options['allow_broad_recs']),
+            'visibleCount' => isset($options['visible_count']) ? (int) $options['visible_count'] : 4,
         );
     }
 
@@ -303,20 +356,348 @@ class Lighting_Configurator
         return $terms;
     }
 
-    private function get_recommended_products()
+    public function render_product_kelvin_field()
     {
-        $query = new WP_Query(array(
+        woocommerce_wp_text_input(array(
+            'id' => self::PRODUCT_KELVIN_META_KEY,
+            'label' => __('Intensitate luminoasă (Kelvin)', 'lighting-configurator'),
+            'type' => 'number',
+            'custom_attributes' => array(
+                'min' => 1000,
+                'step' => 1,
+            ),
+            'description' => __('Folosită pentru filtrarea temperaturii luminii în configurator.', 'lighting-configurator'),
+        ));
+    }
+
+    public function save_product_kelvin_field($product)
+    {
+        if (isset($_POST[self::PRODUCT_KELVIN_META_KEY])) {
+            $value = absint($_POST[self::PRODUCT_KELVIN_META_KEY]);
+            if ($value) {
+                $product->update_meta_data(self::PRODUCT_KELVIN_META_KEY, $value);
+            } else {
+                $product->delete_meta_data(self::PRODUCT_KELVIN_META_KEY);
+            }
+        }
+    }
+
+    public function ajax_get_recommendations()
+    {
+        check_ajax_referer('lighting_configurator', 'nonce');
+
+        $settings = get_option(LIGHTING_CONFIGURATOR_OPTION, array());
+        $limit = isset($settings['results_limit']) ? (int) $settings['results_limit'] : 50;
+        $limit = min(300, max(3, $limit));
+        $allow_broad = !empty($settings['allow_broad_recs']);
+
+        $payload = array(
+            'rooms' => $this->sanitize_id_list(isset($_POST['rooms']) ? $_POST['rooms'] : array()),
+            'styles' => $this->sanitize_id_list(isset($_POST['styles']) ? $_POST['styles'] : array()),
+            'materials' => $this->sanitize_id_list(isset($_POST['materials']) ? $_POST['materials'] : array()),
+            'sources' => $this->sanitize_id_list(isset($_POST['sources']) ? $_POST['sources'] : array()),
+            'categories' => $this->sanitize_id_list(isset($_POST['categories']) ? $_POST['categories'] : array()),
+            'temps' => $this->sanitize_text_list(isset($_POST['temps']) ? $_POST['temps'] : array()),
+        );
+
+        $cart_map = $this->get_cart_map();
+        $results = $this->query_recommendations($payload, $limit, $allow_broad, $cart_map);
+        $complementary = $this->query_complementary_products($limit, $results, $payload['temps'], $cart_map);
+        wp_send_json_success(array(
+            'recommended' => $results,
+            'complementary' => $complementary,
+        ));
+    }
+
+    public function ajax_get_cart_map()
+    {
+        check_ajax_referer('lighting_configurator', 'nonce');
+        wp_send_json_success(array(
+            'cart_map' => $this->get_cart_map(),
+        ));
+    }
+
+    private function sanitize_id_list($items)
+    {
+        if (!is_array($items)) {
+            return array();
+        }
+        return array_values(array_filter(array_map('absint', $items)));
+    }
+
+    private function sanitize_text_list($items)
+    {
+        if (!is_array($items)) {
+            return array();
+        }
+        $clean = array();
+        foreach ($items as $item) {
+            $value = sanitize_key($item);
+            if ($value) {
+                $clean[] = $value;
+            }
+        }
+        return array_values(array_unique($clean));
+    }
+
+    private function query_recommendations($payload, $limit, $allow_broad, $cart_map)
+    {
+        $results = array();
+        $exclude = array();
+
+        $strict = $this->build_query_args($payload, $limit, $exclude, true, true, true);
+        $results = $this->run_reco_query($strict, $results, $exclude, $limit, $cart_map);
+
+        if ($allow_broad && count($results) < $limit) {
+            $relaxed_source = $this->build_query_args($payload, $limit, $exclude, true, false, true);
+            $results = $this->run_reco_query($relaxed_source, $results, $exclude, $limit, $cart_map);
+        }
+
+        if ($allow_broad && count($results) < $limit) {
+            $relaxed_material = $this->build_query_args($payload, $limit, $exclude, false, false, true);
+            $results = $this->run_reco_query($relaxed_material, $results, $exclude, $limit, $cart_map);
+        }
+
+        return $results;
+    }
+
+    private function run_reco_query($args, $results, &$exclude, $limit, $cart_map)
+    {
+        $remaining = $limit - count($results);
+        if ($remaining <= 0) {
+            return $results;
+        }
+
+        $args['posts_per_page'] = $remaining;
+        $args['post__not_in'] = $exclude;
+        $query = new WP_Query($args);
+        if (!$query->have_posts()) {
+            return $results;
+        }
+
+        foreach ($query->posts as $product_id) {
+            $product = wc_get_product($product_id);
+            if (!$product) {
+                continue;
+            }
+            $in_cart = isset($cart_map[$product_id]);
+            $results[] = array(
+                'id' => $product_id,
+                'title' => $product->get_name(),
+                'permalink' => get_permalink($product_id),
+                'thumbnail' => $product->get_image('woocommerce_thumbnail'),
+                'add_to_cart' => esc_url(add_query_arg('add-to-cart', $product_id, home_url('/'))),
+                'in_cart' => $in_cart,
+                'cart_item_key' => $in_cart ? $cart_map[$product_id] : '',
+            );
+            $exclude[] = $product_id;
+            if (count($results) >= $limit) {
+                break;
+            }
+        }
+
+        return $results;
+    }
+
+    private function build_query_args($payload, $limit, $exclude, $use_material, $use_source, $exclude_complementary)
+    {
+        $tax_query = array('relation' => 'AND');
+        $complementary_categories = $exclude_complementary ? $this->get_complementary_category_ids() : array();
+
+        if (!empty($payload['rooms'])) {
+            $tax_query[] = array(
+                'taxonomy' => Lighting_Configurator_Taxonomies::TAX_ROOM,
+                'field' => 'term_id',
+                'terms' => $payload['rooms'],
+            );
+        }
+
+        if (!empty($payload['styles'])) {
+            $tax_query[] = array(
+                'taxonomy' => Lighting_Configurator_Taxonomies::TAX_STYLE,
+                'field' => 'term_id',
+                'terms' => $payload['styles'],
+            );
+        }
+
+        if ($use_material && !empty($payload['materials'])) {
+            $tax_query[] = array(
+                'taxonomy' => Lighting_Configurator_Taxonomies::TAX_MATERIAL,
+                'field' => 'term_id',
+                'terms' => $payload['materials'],
+            );
+        }
+
+        if ($use_source && !empty($payload['sources'])) {
+            $tax_query[] = array(
+                'taxonomy' => Lighting_Configurator_Taxonomies::TAX_SOURCE_TYPE,
+                'field' => 'term_id',
+                'terms' => $payload['sources'],
+            );
+        }
+
+        if (!empty($payload['categories'])) {
+            $tax_query[] = array(
+                'taxonomy' => 'product_cat',
+                'field' => 'term_id',
+                'terms' => $payload['categories'],
+            );
+        }
+
+        if (!empty($complementary_categories)) {
+            $tax_query[] = array(
+                'taxonomy' => 'product_cat',
+                'field' => 'term_id',
+                'terms' => $complementary_categories,
+                'operator' => 'NOT IN',
+            );
+        }
+
+        $args = array(
             'post_type' => 'product',
             'post_status' => 'publish',
-            'posts_per_page' => 50,
+            'posts_per_page' => $limit,
+            'fields' => 'ids',
+        );
+
+        if (count($tax_query) > 1) {
+            $args['tax_query'] = $tax_query;
+        }
+
+        return $args;
+    }
+
+    private function build_kelvin_meta_query($temps)
+    {
+        if (empty($temps)) {
+            return null;
+        }
+
+        $temps = array_values(array_unique($temps));
+        $all_temps = array('warm', 'neutral', 'cool');
+        $covers_all = !array_diff($all_temps, $temps);
+        if ($covers_all) {
+            return null;
+        }
+
+        $ranges = array();
+        foreach ($temps as $temp) {
+            if ($temp === 'warm') {
+                $ranges[] = array(2000, 3000);
+            } elseif ($temp === 'neutral') {
+                $ranges[] = array(3500, 4500);
+            } elseif ($temp === 'cool') {
+                $ranges[] = array(5000, 6500);
+            }
+        }
+
+        if (empty($ranges)) {
+            return null;
+        }
+
+        $meta_query = array('relation' => 'OR');
+        foreach ($ranges as $range) {
+            $meta_query[] = array(
+                'key' => self::PRODUCT_KELVIN_META_KEY,
+                'value' => $range,
+                'type' => 'NUMERIC',
+                'compare' => 'BETWEEN',
+            );
+        }
+
+        return $meta_query;
+    }
+
+    private function get_complementary_category_ids()
+    {
+        $terms = get_terms(array(
+            'taxonomy' => 'product_cat',
+            'hide_empty' => false,
+            'meta_query' => array(
+                array(
+                    'key' => self::CATEGORY_COMPLEMENTARY_KEY,
+                    'value' => '1',
+                    'compare' => '=',
+                ),
+            ),
             'fields' => 'ids',
         ));
+
+        if (is_wp_error($terms)) {
+            return array();
+        }
+
+        return $terms;
+    }
+
+    private function query_complementary_products($limit, $exclude_products, $temps, $cart_map)
+    {
+        $complementary_categories = $this->get_complementary_category_ids();
+        if (empty($complementary_categories)) {
+            return array();
+        }
+
+        $args = array(
+            'post_type' => 'product',
+            'post_status' => 'publish',
+            'posts_per_page' => min(10, $limit),
+            'fields' => 'ids',
+            'post__not_in' => $exclude_products,
+            'tax_query' => array(
+                array(
+                    'taxonomy' => 'product_cat',
+                    'field' => 'term_id',
+                    'terms' => $complementary_categories,
+                ),
+            ),
+        );
+
+        $meta_query = $this->build_kelvin_meta_query($temps);
+        if ($meta_query) {
+            $args['meta_query'] = $meta_query;
+        }
+
+        $query = new WP_Query($args);
 
         if (!$query->have_posts()) {
             return array();
         }
 
-        return $query->posts;
+        $results = array();
+        foreach ($query->posts as $product_id) {
+            $product = wc_get_product($product_id);
+            if (!$product) {
+                continue;
+            }
+            $in_cart = isset($cart_map[$product_id]);
+            $results[] = array(
+                'id' => $product_id,
+                'title' => $product->get_name(),
+                'permalink' => get_permalink($product_id),
+                'thumbnail' => $product->get_image('woocommerce_thumbnail'),
+                'add_to_cart' => esc_url(add_query_arg('add-to-cart', $product_id, home_url('/'))),
+                'in_cart' => $in_cart,
+                'cart_item_key' => $in_cart ? $cart_map[$product_id] : '',
+            );
+        }
+
+        return $results;
+    }
+
+    private function get_cart_map()
+    {
+        if (!function_exists('WC') || !WC()->cart) {
+            return array();
+        }
+
+        $map = array();
+        foreach (WC()->cart->get_cart() as $cart_item_key => $item) {
+            if (!empty($item['product_id'])) {
+                $map[(int) $item['product_id']] = $cart_item_key;
+            }
+        }
+
+        return $map;
     }
 
     public function render_category_meta_add()
@@ -326,12 +707,17 @@ class Lighting_Configurator
             <label for="lc_show_in_configurator"><?php echo esc_html__('Show in Lighting Configurator', 'lighting-configurator'); ?></label>
             <input type="checkbox" name="lc_show_in_configurator" id="lc_show_in_configurator" value="1" />
         </div>
+        <div class="form-field">
+            <label for="lc_is_complementary"><?php echo esc_html__('Categorie complementară (accesorii)', 'lighting-configurator'); ?></label>
+            <input type="checkbox" name="lc_is_complementary" id="lc_is_complementary" value="1" />
+        </div>
         <?php
     }
 
     public function render_category_meta_edit($term)
     {
         $value = get_term_meta($term->term_id, self::CATEGORY_META_KEY, true);
+        $complementary = get_term_meta($term->term_id, self::CATEGORY_COMPLEMENTARY_KEY, true);
         ?>
         <tr class="form-field">
             <th scope="row">
@@ -341,6 +727,14 @@ class Lighting_Configurator
                 <input type="checkbox" name="lc_show_in_configurator" id="lc_show_in_configurator" value="1" <?php checked($value, '1'); ?> />
             </td>
         </tr>
+        <tr class="form-field">
+            <th scope="row">
+                <label for="lc_is_complementary"><?php echo esc_html__('Categorie complementară (accesorii)', 'lighting-configurator'); ?></label>
+            </th>
+            <td>
+                <input type="checkbox" name="lc_is_complementary" id="lc_is_complementary" value="1" <?php checked($complementary, '1'); ?> />
+            </td>
+        </tr>
         <?php
     }
 
@@ -348,6 +742,8 @@ class Lighting_Configurator
     {
         $value = isset($_POST['lc_show_in_configurator']) ? '1' : '0';
         update_term_meta($term_id, self::CATEGORY_META_KEY, $value);
+        $complementary = isset($_POST['lc_is_complementary']) ? '1' : '0';
+        update_term_meta($term_id, self::CATEGORY_COMPLEMENTARY_KEY, $complementary);
     }
 
     private function register_taxonomy_media_fields($taxonomy)

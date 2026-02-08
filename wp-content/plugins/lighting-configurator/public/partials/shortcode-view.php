@@ -5,7 +5,7 @@ if (!defined('ABSPATH')) {
 }
 
 ?>
-<section class="lc-configurator" data-results-limit="<?php echo esc_attr($settings['results_limit'] ?? 3); ?>">
+<section class="lc-configurator" data-results-limit="<?php echo esc_attr($settings['results_limit'] ?? 3); ?>" data-visible-count="<?php echo esc_attr($settings['visible_count'] ?? 4); ?>">
     <header class="lc-header">
         <p class="lc-eyebrow"><?php echo esc_html__('Lighting Configurator', 'lighting-configurator'); ?></p>
         <h4 class="lc-title"><?php echo esc_html__('Răspunde la câteva întrebări și îți sugerăm soluții potrivite.', 'lighting-configurator'); ?></h4>
@@ -246,54 +246,25 @@ if (!defined('ABSPATH')) {
                             <button class="lc-reco-nav lc-reco-prev" type="button">←</button>
                             <button class="lc-reco-nav lc-reco-next" type="button">→</button>
                         </div>
-                        <div class="lc-reco-carousel" data-carousel>
-                            <?php if (!empty($recommended_products)) : ?>
-                                <?php foreach ($recommended_products as $product_id) : ?>
-                                    <?php
-                                    $product = wc_get_product($product_id);
-                                    if (!$product) {
-                                        continue;
-                                    }
-                                    $thumbnail = $product->get_image('woocommerce_thumbnail');
-                                    $title = $product->get_name();
-                                    $add_to_cart_url = esc_url(add_query_arg('add-to-cart', $product_id, home_url('/')));
-                                    $room_terms = wp_get_post_terms($product_id, Lighting_Configurator_Taxonomies::TAX_ROOM, array('fields' => 'ids'));
-                                    $style_terms = wp_get_post_terms($product_id, Lighting_Configurator_Taxonomies::TAX_STYLE, array('fields' => 'ids'));
-                                    $material_terms = wp_get_post_terms($product_id, Lighting_Configurator_Taxonomies::TAX_MATERIAL, array('fields' => 'ids'));
-                                    $source_terms = wp_get_post_terms($product_id, Lighting_Configurator_Taxonomies::TAX_SOURCE_TYPE, array('fields' => 'ids'));
-                                    $category_terms = wp_get_post_terms($product_id, 'product_cat', array('fields' => 'ids'));
-                                    ?>
-                                    <article
-                                        class="lc-reco-card"
-                                        data-product-id="<?php echo esc_attr($product_id); ?>"
-                                        data-room="<?php echo esc_attr(implode(',', $room_terms)); ?>"
-                                        data-style="<?php echo esc_attr(implode(',', $style_terms)); ?>"
-                                        data-material="<?php echo esc_attr(implode(',', $material_terms)); ?>"
-                                        data-source="<?php echo esc_attr(implode(',', $source_terms)); ?>"
-                                        data-category="<?php echo esc_attr(implode(',', $category_terms)); ?>"
-                                    >
-                                        <label class="lc-reco-check">
-                                            <input type="checkbox" class="lc-reco-select" />
-                                            <span></span>
-                                        </label>
-                                        <a class="lc-reco-thumb" href="<?php echo esc_url(get_permalink($product_id)); ?>">
-                                            <?php echo wp_kses_post($thumbnail); ?>
-                                        </a>
-                                        <h5 class="lc-reco-name"><?php echo esc_html($title); ?></h5>
-                                        <div class="lc-reco-actions">
-                                            <a class="lc-reco-cart" href="<?php echo $add_to_cart_url; ?>">Add to cart</a>
-                                        </div>
-                                    </article>
-                                <?php endforeach; ?>
-                            <?php else : ?>
-                                <p><?php echo esc_html__('Nu există produse recomandate.', 'lighting-configurator'); ?></p>
-                            <?php endif; ?>
-                        </div>
+                        <div class="lc-reco-carousel" data-carousel></div>
+                        <p class="lc-reco-empty"><?php echo esc_html__('Nu am găsit nici un produs, te rog modifică filtrele anterioare.', 'lighting-configurator'); ?></p>
                         <div class="lc-reco-footer">
                             <button class="lc-reco-bulk" type="button">Adaugă selectate</button>
                         </div>
                     </div>
-                    <button type="button" class="lc-primary">Add all to cart</button>
+                    <div class="lc-recommendations lc-complementary">
+                        <p class="lc-reco-title">✔ Produse complementare</p>
+                        <h4 class="lc-reco-heading">Accesorii recomandate</h4>
+                        <div class="lc-reco-controls">
+                            <button class="lc-reco-nav lc-reco-prev" type="button">←</button>
+                            <button class="lc-reco-nav lc-reco-next" type="button">→</button>
+                        </div>
+                        <div class="lc-complementary-carousel" data-carousel></div>
+                        <p class="lc-complementary-empty"><?php echo esc_html__('Nu există produse complementare disponibile.', 'lighting-configurator'); ?></p>
+                        <div class="lc-reco-footer">
+                            <button class="lc-reco-bulk" type="button">Adaugă selectate</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="lc-step-actions">
