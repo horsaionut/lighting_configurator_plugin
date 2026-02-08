@@ -6,12 +6,26 @@ if (!defined('ABSPATH')) {
 
 class Lighting_Configurator
 {
+    const CATEGORY_META_KEY = '_lc_show_in_configurator';
+    const TERM_ICON_META_KEY = 'thumbnail_id';
+
     public function run()
     {
+        add_action('init', array('Lighting_Configurator_Taxonomies', 'register'));
         add_action('init', array($this, 'register_shortcode'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_public_assets'));
         add_action('admin_menu', array($this, 'register_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
+        add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
+        add_action('product_cat_add_form_fields', array($this, 'render_category_meta_add'));
+        add_action('product_cat_edit_form_fields', array($this, 'render_category_meta_edit'), 10, 2);
+        add_action('created_product_cat', array($this, 'save_category_meta'));
+        add_action('edited_product_cat', array($this, 'save_category_meta'));
+
+        $this->register_taxonomy_media_fields(Lighting_Configurator_Taxonomies::TAX_ROOM);
+        $this->register_taxonomy_media_fields(Lighting_Configurator_Taxonomies::TAX_STYLE);
+        $this->register_taxonomy_media_fields(Lighting_Configurator_Taxonomies::TAX_MATERIAL);
+        $this->register_taxonomy_media_fields(Lighting_Configurator_Taxonomies::TAX_SOURCE_TYPE);
     }
 
     public function register_shortcode()
@@ -22,6 +36,12 @@ class Lighting_Configurator
     public function render_shortcode($atts = array())
     {
         $settings = get_option(LIGHTING_CONFIGURATOR_OPTION, array());
+        $rooms = $this->get_taxonomy_terms(Lighting_Configurator_Taxonomies::TAX_ROOM);
+        $styles = $this->get_taxonomy_terms(Lighting_Configurator_Taxonomies::TAX_STYLE);
+        $materials = $this->get_taxonomy_terms(Lighting_Configurator_Taxonomies::TAX_MATERIAL);
+        $source_types = $this->get_taxonomy_terms(Lighting_Configurator_Taxonomies::TAX_SOURCE_TYPE);
+        $fixture_categories = $this->get_product_categories();
+        $recommended_products = $this->get_recommended_products();
         ob_start();
         include LIGHTING_CONFIGURATOR_PATH . 'public/partials/shortcode-view.php';
         return ob_get_clean();
@@ -71,13 +91,28 @@ class Lighting_Configurator
 
     public function register_admin_menu()
     {
-        add_options_page(
-            __('Lighting Configurator', 'lighting-configurator'),
-            __('Lighting Configurator', 'lighting-configurator'),
+        add_menu_page(
+            __('IluminatCasa Configurator', 'lighting-configurator'),
+            __('IluminatCasa Configurator', 'lighting-configurator'),
+            'manage_options',
+            'lighting-configurator',
+            array($this, 'render_settings_page'),
+            'dashicons-lightbulb'
+        );
+
+        add_submenu_page(
+            'lighting-configurator',
+            __('Settings', 'lighting-configurator'),
+            __('Settings', 'lighting-configurator'),
             'manage_options',
             'lighting-configurator',
             array($this, 'render_settings_page')
         );
+
+        $this->register_taxonomy_submenu(Lighting_Configurator_Taxonomies::TAX_ROOM, __('Camere (Configurator)', 'lighting-configurator'));
+        $this->register_taxonomy_submenu(Lighting_Configurator_Taxonomies::TAX_STYLE, __('Stil iluminat', 'lighting-configurator'));
+        $this->register_taxonomy_submenu(Lighting_Configurator_Taxonomies::TAX_MATERIAL, __('Material corp iluminat', 'lighting-configurator'));
+        $this->register_taxonomy_submenu(Lighting_Configurator_Taxonomies::TAX_SOURCE_TYPE, __('Tip sursa iluminat', 'lighting-configurator'));
     }
 
     public function render_settings_page()
@@ -135,5 +170,284 @@ class Lighting_Configurator
         return array(
             'resultsLimit' => isset($options['results_limit']) ? (int) $options['results_limit'] : 3,
         );
+    }
+
+    private function register_taxonomy_submenu($taxonomy, $label)
+    {
+        $slug = 'lighting-configurator-tax-' . $taxonomy;
+        $capability = 'manage_options';
+        add_submenu_page(
+            'lighting-configurator',
+            $label,
+            $label,
+            $capability,
+            $slug,
+            array($this, 'render_taxonomy_redirect')
+        );
+    }
+
+    public function render_taxonomy_redirect()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('Sorry, you are not allowed to access this page.', 'lighting-configurator'));
+        }
+
+        $page = isset($_GET['page']) ? sanitize_key($_GET['page']) : '';
+        $prefix = 'lighting-configurator-tax-';
+        if (strpos($page, $prefix) !== 0) {
+            wp_die(esc_html__('Invalid taxonomy page.', 'lighting-configurator'));
+        }
+
+        $taxonomy = substr($page, strlen($prefix));
+        if (!$taxonomy || !taxonomy_exists($taxonomy)) {
+            wp_die(esc_html__('Invalid taxonomy.', 'lighting-configurator'));
+        }
+
+        $url = admin_url('edit-tags.php?taxonomy=' . $taxonomy . '&post_type=product');
+        wp_safe_redirect($url);
+        exit;
+    }
+
+    public function enqueue_admin_assets($hook)
+    {
+        $this->enqueue_admin_list_styles($hook);
+
+        if ($hook !== 'edit-tags.php' && $hook !== 'term.php') {
+            return;
+        }
+
+        $taxonomy = isset($_GET['taxonomy']) ? sanitize_key($_GET['taxonomy']) : '';
+        $allowed = array(
+            Lighting_Configurator_Taxonomies::TAX_ROOM,
+            Lighting_Configurator_Taxonomies::TAX_STYLE,
+            Lighting_Configurator_Taxonomies::TAX_MATERIAL,
+            Lighting_Configurator_Taxonomies::TAX_SOURCE_TYPE,
+        );
+
+        if (!in_array($taxonomy, $allowed, true)) {
+            return;
+        }
+
+        wp_enqueue_media();
+        wp_enqueue_script('media-editor');
+        wp_add_inline_script('media-editor', $this->get_term_media_script(), 'after');
+    }
+
+    private function enqueue_admin_list_styles($hook)
+    {
+        if ($hook !== 'edit.php') {
+            return;
+        }
+
+        $post_type = isset($_GET['post_type']) ? sanitize_key($_GET['post_type']) : '';
+        if ($post_type !== 'product') {
+            return;
+        }
+
+        $css = '
+            .fixed .column-taxonomy-lighting_room,
+            .fixed .column-taxonomy-lighting_style,
+            .fixed .column-taxonomy-lighting_material,
+            .fixed .column-taxonomy-lighting_source_type {
+                width: 140px;
+                white-space: normal;
+            }
+            .fixed .column-taxonomy-lighting_room a,
+            .fixed .column-taxonomy-lighting_style a,
+            .fixed .column-taxonomy-lighting_material a,
+            .fixed .column-taxonomy-lighting_source_type a {
+                display: inline-block;
+                margin: 0 4px 2px 0;
+                white-space: nowrap;
+            }
+        ';
+        wp_add_inline_style('wp-admin', $css);
+    }
+
+    private function get_taxonomy_terms($taxonomy)
+    {
+        if (!taxonomy_exists($taxonomy)) {
+            return array();
+        }
+
+        $terms = get_terms(array(
+            'taxonomy' => $taxonomy,
+            'hide_empty' => false,
+        ));
+
+        if (is_wp_error($terms)) {
+            return array();
+        }
+
+        return $terms;
+    }
+
+    private function get_product_categories()
+    {
+        $terms = get_terms(array(
+            'taxonomy' => 'product_cat',
+            'hide_empty' => false,
+            'meta_query' => array(
+                array(
+                    'key' => self::CATEGORY_META_KEY,
+                    'value' => '1',
+                    'compare' => '=',
+                ),
+            ),
+        ));
+
+        if (is_wp_error($terms)) {
+            return array();
+        }
+
+        return $terms;
+    }
+
+    private function get_recommended_products()
+    {
+        $query = new WP_Query(array(
+            'post_type' => 'product',
+            'post_status' => 'publish',
+            'posts_per_page' => 50,
+            'fields' => 'ids',
+        ));
+
+        if (!$query->have_posts()) {
+            return array();
+        }
+
+        return $query->posts;
+    }
+
+    public function render_category_meta_add()
+    {
+        ?>
+        <div class="form-field">
+            <label for="lc_show_in_configurator"><?php echo esc_html__('Show in Lighting Configurator', 'lighting-configurator'); ?></label>
+            <input type="checkbox" name="lc_show_in_configurator" id="lc_show_in_configurator" value="1" />
+        </div>
+        <?php
+    }
+
+    public function render_category_meta_edit($term)
+    {
+        $value = get_term_meta($term->term_id, self::CATEGORY_META_KEY, true);
+        ?>
+        <tr class="form-field">
+            <th scope="row">
+                <label for="lc_show_in_configurator"><?php echo esc_html__('Show in Lighting Configurator', 'lighting-configurator'); ?></label>
+            </th>
+            <td>
+                <input type="checkbox" name="lc_show_in_configurator" id="lc_show_in_configurator" value="1" <?php checked($value, '1'); ?> />
+            </td>
+        </tr>
+        <?php
+    }
+
+    public function save_category_meta($term_id)
+    {
+        $value = isset($_POST['lc_show_in_configurator']) ? '1' : '0';
+        update_term_meta($term_id, self::CATEGORY_META_KEY, $value);
+    }
+
+    private function register_taxonomy_media_fields($taxonomy)
+    {
+        add_action($taxonomy . '_add_form_fields', array($this, 'render_term_media_add'));
+        add_action($taxonomy . '_edit_form_fields', array($this, 'render_term_media_edit'), 10, 2);
+        add_action('created_' . $taxonomy, array($this, 'save_term_media'));
+        add_action('edited_' . $taxonomy, array($this, 'save_term_media'));
+    }
+
+    public function render_term_media_add()
+    {
+        ?>
+        <div class="form-field">
+            <label for="lc_term_icon_id"><?php echo esc_html__('Icon / Image', 'lighting-configurator'); ?></label>
+            <input type="hidden" name="lc_term_icon_id" id="lc_term_icon_id" value="" />
+            <div class="lc-term-media-preview"></div>
+            <p>
+                <button type="button" class="button lc-term-media-upload"><?php echo esc_html__('Upload image', 'lighting-configurator'); ?></button>
+                <button type="button" class="button lc-term-media-remove" style="display:none;"><?php echo esc_html__('Remove', 'lighting-configurator'); ?></button>
+            </p>
+        </div>
+        <?php
+    }
+
+    public function render_term_media_edit($term)
+    {
+        $image_id = (int) get_term_meta($term->term_id, self::TERM_ICON_META_KEY, true);
+        $image = $image_id ? wp_get_attachment_image($image_id, 'thumbnail') : '';
+        ?>
+        <tr class="form-field">
+            <th scope="row">
+                <label for="lc_term_icon_id"><?php echo esc_html__('Icon / Image', 'lighting-configurator'); ?></label>
+            </th>
+            <td>
+                <input type="hidden" name="lc_term_icon_id" id="lc_term_icon_id" value="<?php echo esc_attr($image_id); ?>" />
+                <div class="lc-term-media-preview">
+                    <?php echo wp_kses_post($image); ?>
+                </div>
+                <p>
+                    <button type="button" class="button lc-term-media-upload"><?php echo esc_html__('Upload image', 'lighting-configurator'); ?></button>
+                    <button type="button" class="button lc-term-media-remove" <?php echo $image_id ? '' : 'style="display:none;"'; ?>><?php echo esc_html__('Remove', 'lighting-configurator'); ?></button>
+                </p>
+            </td>
+        </tr>
+        <?php
+    }
+
+    public function save_term_media($term_id)
+    {
+        if (isset($_POST['lc_term_icon_id'])) {
+            $image_id = absint($_POST['lc_term_icon_id']);
+            update_term_meta($term_id, self::TERM_ICON_META_KEY, $image_id);
+        }
+    }
+
+    private function get_term_media_script()
+    {
+        return <<<'JS'
+(function($){
+    function refreshButtons($wrap){
+        var has = $wrap.find('#lc_term_icon_id').val();
+        $wrap.find('.lc-term-media-remove').toggle(!!has);
+    }
+
+    function getPreviewUrl(attachment){
+        if (attachment && attachment.sizes && attachment.sizes.thumbnail) {
+            return attachment.sizes.thumbnail.url;
+        }
+        return attachment && attachment.url ? attachment.url : '';
+    }
+
+    $(document).on('click', '.lc-term-media-upload', function(e){
+        e.preventDefault();
+        var $wrap = $(this).closest('td, .form-field');
+        var frame = wp.media({title: 'Select image', button: {text: 'Use image'}, multiple: false});
+        frame.on('select', function(){
+            var attachment = frame.state().get('selection').first().toJSON();
+            var url = getPreviewUrl(attachment);
+            $wrap.find('#lc_term_icon_id').val(attachment.id || '');
+            $wrap.find('.lc-term-media-preview').html(url ? '<img src="' + url + '" alt="" style="max-width:100%;height:auto;" />' : '');
+            refreshButtons($wrap);
+        });
+        frame.open();
+    });
+
+    $(document).on('click', '.lc-term-media-remove', function(e){
+        e.preventDefault();
+        var $wrap = $(this).closest('td, .form-field');
+        $wrap.find('#lc_term_icon_id').val('');
+        $wrap.find('.lc-term-media-preview').html('');
+        refreshButtons($wrap);
+    });
+
+    $(function(){
+        $('.lc-term-media-upload').each(function(){
+            refreshButtons($(this).closest('td, .form-field'));
+        });
+    });
+})(jQuery);
+JS;
     }
 }

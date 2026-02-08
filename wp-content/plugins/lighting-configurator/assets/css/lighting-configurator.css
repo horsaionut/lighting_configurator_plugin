@@ -1,20 +1,23 @@
 :root {
-    --lc-ink: #1e1a16;
-    --lc-ink-soft: #4a4038;
-    --lc-cream: #f7f1e6;
-    --lc-sand: #efe4d2;
-    --lc-sun: #d6a56a;
-    --lc-moss: #5a6b54;
-    --lc-shadow: 0 18px 40px rgba(26, 20, 12, 0.12);
-    --lc-radius: 24px;
+    --lc-ink: #1f1e24;
+    --lc-ink-soft: #6d6a75;
+    --lc-cream: #f7f2ec;
+    --lc-sand: #ebe6df;
+    --lc-sun: #c8a97e;
+    --lc-moss: #2f4b3d;
+    --lc-shadow: 0 18px 40px rgba(23, 20, 30, 0.08);
+    --lc-radius: 22px;
+    --lc-card-bg: #ffffff;
+    --lc-border: rgba(32, 28, 40, 0.12);
+    --lc-accent: #2f4b3d;
 }
 
 .lc-configurator {
     font-family: "Cormorant Garamond", "Palatino Linotype", serif;
     color: var(--lc-ink);
-    background: linear-gradient(135deg, #fbf6ee 0%, #f3e8d5 100%);
-    padding: 56px 24px 80px;
-    border-radius: 28px;
+    background: linear-gradient(140deg, #fbf8f4 0%, #f0ebe5 100%);
+    padding: 56px 28px 80px;
+    border-radius: 30px;
 }
 
 .lc-header {
@@ -33,7 +36,7 @@
 }
 
 .lc-title {
-    font-size: clamp(28px, 4vw, 48px);
+    font-size: clamp(16px, 4vw, 20px);
     margin: 0 0 12px;
 }
 
@@ -70,7 +73,7 @@
     height: 2px;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(30, 26, 22, 0.2);
+    background: rgba(32, 28, 40, 0.15);
     z-index: 0;
 }
 
@@ -80,8 +83,8 @@
     width: 40px;
     height: 40px;
     border-radius: 999px;
-    border: 2px solid rgba(30, 26, 22, 0.2);
-    background: #fffaf2;
+    border: 2px solid var(--lc-border);
+    background: #fff;
     color: var(--lc-ink);
     font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
     font-size: 14px;
@@ -123,14 +126,14 @@
 }
 
 .lc-step-dot.is-active {
-    border-color: var(--lc-moss);
+    border-color: var(--lc-accent);
     background: #fff;
     transform: translateY(-2px);
 }
 
 .lc-step {
-    background: rgba(255, 255, 255, 0.65);
-    padding: 32px;
+    background: rgba(255, 255, 255, 0.82);
+    padding: 36px;
     border-radius: var(--lc-radius);
     box-shadow: var(--lc-shadow);
     display: none;
@@ -155,21 +158,53 @@
 }
 
 .lc-card {
-    border: 1px solid rgba(90, 107, 84, 0.3);
-    background: #fffaf2;
-    padding: 28px 16px;
+    border: 1px solid var(--lc-border);
+    background: var(--lc-card-bg);
+    padding: 22px 18px;
     border-radius: 18px;
     font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
     font-size: 16px;
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    display: grid;
+    gap: 12px;
+    align-content: start;
 }
 
 .lc-card:hover,
 .lc-card.is-selected {
     transform: translateY(-4px);
     border-color: var(--lc-sun);
-    box-shadow: 0 16px 30px rgba(214, 165, 106, 0.25);
+    box-shadow: 0 16px 30px rgba(34, 30, 45, 0.15);
+}
+
+.lc-card-media {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-radius: 14px;
+    background: linear-gradient(140deg, rgba(200, 169, 126, 0.22), rgba(47, 75, 61, 0.15));
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+
+.lc-card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.lc-card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background: radial-gradient(circle at top, #ffffff, #e9dfd4);
+    box-shadow: inset 0 0 0 1px rgba(32, 28, 40, 0.1);
+}
+
+.lc-card-label {
+    font-weight: 600;
+    letter-spacing: 0.02em;
 }
 
 .lc-form-grid {
@@ -186,16 +221,55 @@
 }
 
 .lc-field input {
-    border: 1px solid rgba(30, 26, 22, 0.2);
+    border: 1px solid var(--lc-border);
     padding: 12px 14px;
     border-radius: 12px;
     font-size: 14px;
 }
 
-.lc-image-placeholder {
-    min-height: 140px;
+.lc-wall-tone {
+    margin-top: 20px;
+}
+
+.lc-wall-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.lc-wall-option {
+    border: 1px solid var(--lc-border);
+    background: #fff;
+    padding: 16px 18px;
     border-radius: 18px;
-    background: linear-gradient(120deg, rgba(90, 107, 84, 0.1), rgba(214, 165, 106, 0.25));
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.lc-wall-option:hover,
+.lc-wall-option.is-selected {
+    transform: translateY(-2px);
+    border-color: var(--lc-sun);
+    box-shadow: 0 12px 24px rgba(34, 30, 45, 0.12);
+}
+
+.lc-wall-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    box-shadow: inset 0 0 0 1px rgba(32, 28, 40, 0.1);
+}
+
+.lc-wall-icon-dark {
+    background: linear-gradient(135deg, #3c3a40, #1f1e24);
+}
+
+.lc-wall-icon-light {
+    background: linear-gradient(135deg, #f4efe8, #e6dfd6);
 }
 
 .lc-style-strip {
@@ -204,21 +278,84 @@
     gap: 16px;
 }
 
+.lc-preferences {
+    display: grid;
+    gap: 24px;
+}
+
+.lc-pref-title {
+    margin: 0 0 12px;
+    font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--lc-ink-soft);
+}
+
 .lc-style {
     background: #fff;
-    border: 1px solid rgba(30, 26, 22, 0.15);
-    padding: 22px;
+    border: 1px solid var(--lc-border);
+    padding: 18px 20px;
     border-radius: 18px;
     font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
     font-size: 16px;
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: grid;
+    gap: 12px;
+    align-content: start;
+    position: relative;
 }
 
 .lc-style:hover,
 .lc-style.is-selected {
     transform: translateY(-4px);
-    box-shadow: 0 16px 30px rgba(30, 26, 22, 0.15);
+    box-shadow: 0 16px 30px rgba(34, 30, 45, 0.15);
+}
+
+.lc-style.is-selected::after {
+    content: "✓";
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--lc-ink);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+}
+
+.lc-style-media {
+    width: 100%;
+    aspect-ratio: 5 / 3;
+    border-radius: 14px;
+    background: linear-gradient(140deg, rgba(200, 169, 126, 0.18), rgba(47, 75, 61, 0.12));
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+}
+
+.lc-style-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.lc-style-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
+    background: radial-gradient(circle at top, #ffffff, #efe6dc);
+    box-shadow: inset 0 0 0 1px rgba(32, 28, 40, 0.1);
+}
+
+.lc-style-label {
+    font-weight: 600;
+    letter-spacing: 0.01em;
 }
 
 .lc-results {
@@ -226,29 +363,204 @@
     gap: 16px;
 }
 
-.lc-step-actions {
-    display: flex;
+.lc-summary-lumens {
+    font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+    margin: 0 0 12px;
+}
+
+.lc-summary {
+    display: grid;
+    gap: 8px;
+    font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+    font-size: 14px;
+    color: var(--lc-ink-soft);
+}
+
+.lc-summary-row {
+    display: grid;
+    grid-template-columns: 160px 1fr;
     gap: 12px;
-    justify-content: flex-end;
-    margin-top: 24px;
+}
+
+.lc-summary-value {
+    color: var(--lc-ink);
+    font-weight: 600;
+}
+
+.lc-recommendations {
+    margin-top: 16px;
+    display: grid;
+    gap: 12px;
+}
+
+.lc-reco-title {
+    margin: 0;
+    font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--lc-ink-soft);
+}
+
+.lc-reco-heading {
+    margin: 0;
+    font-size: 18px;
+}
+
+.lc-reco-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.lc-reco-nav {
+    border: 1px solid var(--lc-border);
+    background: #fff;
+    color: var(--lc-ink);
+    border-radius: 10px;
+    padding: 6px 10px;
+    cursor: pointer;
     font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
 }
 
-.lc-prev,
-.lc-next {
-    border: 1px solid rgba(30, 26, 22, 0.2);
+.lc-reco-carousel {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.lc-reco-card {
+    border: 1px solid var(--lc-border);
+    border-radius: 16px;
+    padding: 12px;
+    background: #fff;
+    display: none;
+    position: relative;
+    gap: 10px;
+}
+
+.lc-reco-card.is-visible {
+    display: grid;
+}
+
+.lc-reco-card.is-hidden {
+    display: none;
+}
+
+.lc-reco-check {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+.lc-reco-check input {
+    position: absolute;
+    opacity: 0;
+}
+
+.lc-reco-check span {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--lc-ink);
+    border-radius: 6px;
+    display: inline-block;
+    background: #fff;
+}
+
+.lc-reco-check input:checked + span {
+    background: var(--lc-ink);
+    box-shadow: inset 0 0 0 4px #fff;
+}
+
+.lc-reco-thumb img {
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+}
+
+.lc-reco-name {
+    margin: 0;
+    font-size: 14px;
+    font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+}
+
+.lc-reco-actions {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.lc-reco-cart {
+    border: 1px solid var(--lc-ink);
+    color: var(--lc-ink);
+    padding: 6px 10px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 12px;
+    font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+}
+
+.lc-reco-footer {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.lc-reco-bulk {
+    border: 1px solid var(--lc-ink);
     background: #fff;
     color: var(--lc-ink);
-    padding: 10px 18px;
+    padding: 8px 12px;
     border-radius: 999px;
     cursor: pointer;
     font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
 }
 
+.lc-step-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    font-family: inherit;
+}
+
+.lc-step-actions .lc-prev {
+    margin-right: auto;
+}
+
+.lc-prev,
 .lc-next {
-    border-color: var(--lc-moss);
-    background: var(--lc-moss);
-    color: #fff;
+    border: none;
+    border-top: 2px solid var(--lc-ink);
+    background: transparent;
+    color: var(--lc-ink);
+    padding: 8px 0;
+    border-radius: 0;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.lc-next {
+    border-color: var(--lc-ink);
+    background: transparent;
+    color: var(--lc-ink);
+}
+
+.lc-next::after,
+.lc-prev::before {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.lc-next::after {
+    content: "→";
+}
+
+.lc-prev::before {
+    content: "←";
 }
 
 .lc-result-card {
@@ -282,5 +594,9 @@
 
     .lc-step {
         padding: 24px;
+    }
+
+    .lc-reco-carousel {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
