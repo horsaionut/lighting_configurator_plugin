@@ -353,6 +353,9 @@
             $('.lc-modal.is-open').each(function () {
                 closeProductModal($(this).closest('.lc-configurator'));
             });
+            $('.lc-cart-drawer.is-open').each(function () {
+                closeCartDrawer($(this).closest('.lc-configurator'));
+            });
         }
     });
 
@@ -519,5 +522,133 @@
         var $modal = $configurator.find('.lc-modal');
         $modal.removeClass('is-open').attr('aria-hidden', 'true');
         $('body').removeClass('lc-modal-open');
+    }
+
+    $(document).on('click', '.lc-cart-fab', function () {
+        var $configurator = $(this).closest('.lc-configurator');
+        openCartDrawer($configurator);
+    });
+
+    $(document).on('click', '.lc-cart-drawer-close', function () {
+        closeCartDrawer($(this).closest('.lc-configurator'));
+    });
+
+    $(document).on('click', '.lc-cart-update', function () {
+        var $configurator = $(this).closest('.lc-configurator');
+        updateCartDrawer($configurator);
+    });
+
+    function openCartDrawer($configurator) {
+        if (!$configurator || !$configurator.length) {
+            return;
+        }
+        var $drawer = $configurator.find('.lc-cart-drawer');
+        $drawer.addClass('is-open').attr('aria-hidden', 'false');
+        $('body').addClass('lc-modal-open');
+        loadCartDrawer($configurator);
+    }
+
+    function closeCartDrawer($configurator) {
+        if (!$configurator || !$configurator.length) {
+            return;
+        }
+        var $drawer = $configurator.find('.lc-cart-drawer');
+        $drawer.removeClass('is-open').attr('aria-hidden', 'true');
+        $('body').removeClass('lc-modal-open');
+    }
+
+    function loadCartDrawer($configurator) {
+        if (typeof LightingConfiguratorData === 'undefined') {
+            return;
+        }
+        var $drawer = $configurator.find('.lc-cart-drawer');
+        var $body = $drawer.find('.lc-cart-drawer-body');
+        $body.html('<div class="lc-cart-loading">Se încarcă...</div>');
+        $.ajax({
+            type: 'POST',
+            url: LightingConfiguratorData.ajaxUrl,
+            data: {
+                action: 'lc_get_cart_sidebar',
+                nonce: LightingConfiguratorData.nonce,
+            },
+            success: function (response) {
+                if (!response || !response.success || !response.data || !response.data.html) {
+                    $body.html('<div class="lc-cart-loading">Nu am putut încărca coșul.</div>');
+                    return;
+                }
+                $body.html(response.data.html);
+            },
+            error: function () {
+                $body.html('<div class="lc-cart-loading">Nu am putut încărca coșul.</div>');
+            }
+        });
+    }
+
+    function updateCartDrawer($configurator) {
+        if (typeof LightingConfiguratorData === 'undefined') {
+            return;
+        }
+        var $drawer = $configurator.find('.lc-cart-drawer');
+        var $items = $drawer.find('.lc-cart-item');
+        var payload = [];
+        $items.each(function () {
+            var $item = $(this);
+            var key = $item.data('cart-key');
+            var qty = parseInt($item.find('.lc-cart-qty').val(), 10);
+            if (!key || isNaN(qty)) {
+                return;
+            }
+            payload.push({ key: key, qty: qty });
+        });
+
+        var $body = $drawer.find('.lc-cart-drawer-body');
+        $body.addClass('is-updating');
+        $.ajax({
+            type: 'POST',
+            url: LightingConfiguratorData.ajaxUrl,
+            data: {
+                action: 'lc_update_cart_sidebar',
+                nonce: LightingConfiguratorData.nonce,
+                items: payload
+            },
+            success: function (response) {
+                $body.removeClass('is-updating');
+                if (!response || !response.success || !response.data || !response.data.html) {
+                    $body.html('<div class="lc-cart-loading">Nu am putut actualiza coșul.</div>');
+                    return;
+                }
+                $body.html(response.data.html);
+                refreshCartState($configurator);
+                refreshCartFragments();
+            },
+            error: function () {
+                $body.removeClass('is-updating');
+                $body.html('<div class="lc-cart-loading">Nu am putut actualiza coșul.</div>');
+            }
+        });
+    }
+
+    function refreshCartFragments() {
+        if (typeof wc_add_to_cart_params === 'undefined') {
+            return;
+        }
+        if (typeof wc_cart_fragments_params !== 'undefined') {
+            $(document.body).trigger('wc_fragment_refresh');
+        }
+        $.ajax({
+            type: 'POST',
+            url: wc_add_to_cart_params.wc_ajax_url.replace('%%endpoint%%', 'get_refreshed_fragments'),
+            success: function (data) {
+                if (!data || !data.fragments) {
+                    return;
+                }
+                $.each(data.fragments, function (key, value) {
+                    $(key).replaceWith(value);
+                });
+                if (data.cart_hash) {
+                    $(document.body).trigger('wc_fragments_refreshed', [data.fragments, data.cart_hash]);
+                }
+            }
+        });
     }
 })(jQuery);

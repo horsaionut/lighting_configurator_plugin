@@ -19,6 +19,7 @@ define('LIGHTING_CONFIGURATOR_URL', plugin_dir_url(__FILE__));
 require_once LIGHTING_CONFIGURATOR_PATH . 'includes/class-lighting-configurator-activator.php';
 require_once LIGHTING_CONFIGURATOR_PATH . 'includes/class-lighting-configurator-deactivator.php';
 require_once LIGHTING_CONFIGURATOR_PATH . 'includes/class-lighting-configurator-taxonomies.php';
+require_once LIGHTING_CONFIGURATOR_PATH . 'includes/class-lighting-configurator-meta.php';
 require_once LIGHTING_CONFIGURATOR_PATH . 'includes/class-lighting-configurator.php';
 
 register_activation_hook(__FILE__, array('Lighting_Configurator_Activator', 'activate'));

@@ -9,6 +9,7 @@ class Lighting_Configurator_Activator
     public static function activate()
     {
         Lighting_Configurator_Taxonomies::register();
+        Lighting_Configurator_Meta::register();
         flush_rewrite_rules();
 
         if (get_option(LIGHTING_CONFIGURATOR_OPTION) === false) {

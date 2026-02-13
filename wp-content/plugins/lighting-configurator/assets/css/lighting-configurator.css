@@ -632,6 +632,148 @@ body.lc-modal-open {
     }
 }
 
+.lc-cart-fab {
+    position: fixed;
+    right: 22px;
+    top: 40%;
+    z-index: 9998;
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    border: 1px solid var(--lc-ink);
+    background: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+.lc-cart-fab-icon {
+    font-size: 18px;
+}
+
+.lc-cart-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: min(420px, 90vw);
+    height: 100vh;
+    background: #fff;
+    border-left: 1px solid #e6e6e6;
+    z-index: 9999;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.lc-cart-drawer.is-open {
+    transform: translateX(0);
+}
+
+.lc-cart-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px;
+    border-bottom: 1px solid #eee;
+}
+
+.lc-cart-drawer-close {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.lc-cart-drawer-body {
+    padding: 16px 18px;
+    overflow: auto;
+    flex: 1;
+}
+
+.lc-cart-item {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.lc-cart-thumb img {
+    width: 64px;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+}
+
+.lc-cart-name {
+    display: inline-block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: #1c1c1c;
+    text-decoration: none;
+}
+
+.lc-cart-price {
+    font-size: 13px;
+    color: #444;
+    margin-bottom: 6px;
+}
+
+.lc-cart-qty-label {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.lc-cart-qty {
+    width: 100%;
+    max-width: 120px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 6px 8px;
+}
+
+.lc-cart-drawer-footer {
+    padding: 16px 18px;
+    border-top: 1px solid #eee;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.lc-cart-update {
+    border: 1px solid var(--lc-ink);
+    background: #fff;
+    color: var(--lc-ink);
+    padding: 10px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.lc-cart-links {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.lc-cart-links a {
+    text-decoration: none;
+    color: var(--lc-ink);
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.lc-cart-loading,
+.lc-cart-empty {
+    font-size: 13px;
+    color: #666;
+}
+
 .lc-reco-cart {
     border: 1px solid var(--lc-ink);
     color: var(--lc-ink);

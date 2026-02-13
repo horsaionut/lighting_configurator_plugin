@@ -10,6 +10,8 @@ class Lighting_Configurator_Taxonomies
     const TAX_STYLE = 'lighting_style';
     const TAX_MATERIAL = 'lighting_material';
     const TAX_SOURCE_TYPE = 'lighting_source_type';
+    const TAX_COLOR = 'lighting_color';
+    const TAX_VOLTAGE = 'lighting_voltage';
 
     public static function register()
     {
@@ -28,38 +30,69 @@ class Lighting_Configurator_Taxonomies
                 'assign_terms' => 'edit_products',
             ),
         );
+        $flat_args = array_merge($shared_args, array(
+            'hierarchical' => false,
+        ));
 
-        register_taxonomy(
-            self::TAX_ROOM,
-            array('product'),
-            array_merge($shared_args, array(
-                'labels' => self::build_labels(__('Camere (Configurator)', 'lighting-configurator')),
-            ))
-        );
+        if (!taxonomy_exists(self::TAX_ROOM)) {
+            register_taxonomy(
+                self::TAX_ROOM,
+                array('product'),
+                array_merge($shared_args, array(
+                    'labels' => self::build_labels(__('Camere (Configurator)', 'lighting-configurator')),
+                ))
+            );
+        }
 
-        register_taxonomy(
-            self::TAX_STYLE,
-            array('product'),
-            array_merge($shared_args, array(
-                'labels' => self::build_labels(__('Stil iluminat', 'lighting-configurator')),
-            ))
-        );
+        if (!taxonomy_exists(self::TAX_STYLE)) {
+            register_taxonomy(
+                self::TAX_STYLE,
+                array('product'),
+                array_merge($shared_args, array(
+                    'labels' => self::build_labels(__('Stil iluminat', 'lighting-configurator')),
+                ))
+            );
+        }
 
-        register_taxonomy(
-            self::TAX_MATERIAL,
-            array('product'),
-            array_merge($shared_args, array(
-                'labels' => self::build_labels(__('Material corp iluminat', 'lighting-configurator')),
-            ))
-        );
+        if (!taxonomy_exists(self::TAX_MATERIAL)) {
+            register_taxonomy(
+                self::TAX_MATERIAL,
+                array('product'),
+                array_merge($shared_args, array(
+                    'labels' => self::build_labels(__('Material corp iluminat', 'lighting-configurator')),
+                ))
+            );
+        }
 
-        register_taxonomy(
-            self::TAX_SOURCE_TYPE,
-            array('product'),
-            array_merge($shared_args, array(
-                'labels' => self::build_labels(__('Tip sursa iluminat', 'lighting-configurator')),
-            ))
-        );
+        if (!taxonomy_exists(self::TAX_SOURCE_TYPE)) {
+            register_taxonomy(
+                self::TAX_SOURCE_TYPE,
+                array('product'),
+                array_merge($shared_args, array(
+                    'labels' => self::build_labels(__('Tip sursa iluminat', 'lighting-configurator')),
+                ))
+            );
+        }
+
+        if (!taxonomy_exists(self::TAX_COLOR)) {
+            register_taxonomy(
+                self::TAX_COLOR,
+                array('product'),
+                array_merge($flat_args, array(
+                    'labels' => self::build_labels(__('Culoare produs', 'lighting-configurator')),
+                ))
+            );
+        }
+
+        if (!taxonomy_exists(self::TAX_VOLTAGE)) {
+            register_taxonomy(
+                self::TAX_VOLTAGE,
+                array('product'),
+                array_merge($flat_args, array(
+                    'labels' => self::build_labels(__('Voltaj', 'lighting-configurator')),
+                ))
+            );
+        }
     }
 
     private static function build_labels($singular)

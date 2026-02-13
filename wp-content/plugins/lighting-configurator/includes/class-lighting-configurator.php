@@ -14,6 +14,7 @@ class Lighting_Configurator
     public function run()
     {
         add_action('init', array('Lighting_Configurator_Taxonomies', 'register'));
+        add_action('init', array('Lighting_Configurator_Meta', 'register'));
         add_action('init', array($this, 'register_shortcode'));
         add_action('wp_enqueue_scripts', array($this, 'enqueue_public_assets'));
         add_action('admin_menu', array($this, 'register_admin_menu'));
@@ -24,13 +25,19 @@ class Lighting_Configurator
         add_action('created_product_cat', array($this, 'save_category_meta'));
         add_action('edited_product_cat', array($this, 'save_category_meta'));
         add_action('woocommerce_product_options_general_product_data', array($this, 'render_product_kelvin_field'));
+        add_action('woocommerce_product_options_general_product_data', array($this, 'render_product_specs_fields'));
         add_action('woocommerce_admin_process_product_object', array($this, 'save_product_kelvin_field'));
+        add_action('woocommerce_admin_process_product_object', array($this, 'save_product_specs_fields'));
         add_action('wp_ajax_lc_get_recommendations', array($this, 'ajax_get_recommendations'));
         add_action('wp_ajax_nopriv_lc_get_recommendations', array($this, 'ajax_get_recommendations'));
         add_action('wp_ajax_lc_get_cart_map', array($this, 'ajax_get_cart_map'));
         add_action('wp_ajax_nopriv_lc_get_cart_map', array($this, 'ajax_get_cart_map'));
         add_action('wp_ajax_lc_get_product_modal', array($this, 'ajax_get_product_modal'));
         add_action('wp_ajax_nopriv_lc_get_product_modal', array($this, 'ajax_get_product_modal'));
+        add_action('wp_ajax_lc_get_cart_sidebar', array($this, 'ajax_get_cart_sidebar'));
+        add_action('wp_ajax_nopriv_lc_get_cart_sidebar', array($this, 'ajax_get_cart_sidebar'));
+        add_action('wp_ajax_lc_update_cart_sidebar', array($this, 'ajax_update_cart_sidebar'));
+        add_action('wp_ajax_nopriv_lc_update_cart_sidebar', array($this, 'ajax_update_cart_sidebar'));
 
         $this->register_taxonomy_media_fields(Lighting_Configurator_Taxonomies::TAX_ROOM);
         $this->register_taxonomy_media_fields(Lighting_Configurator_Taxonomies::TAX_STYLE);
@@ -174,6 +181,14 @@ class Lighting_Configurator
             'lighting-configurator',
             'lighting_configurator_general'
         );
+
+        add_settings_field(
+            'enable_quick_cart',
+            __('Enable quick cart', 'lighting-configurator'),
+            array($this, 'render_enable_quick_cart_field'),
+            'lighting-configurator',
+            'lighting_configurator_general'
+        );
     }
 
     public function render_section_description()
@@ -206,6 +221,14 @@ class Lighting_Configurator
         echo '<p class="description">' . esc_html__('Numărul de produse afișate simultan în carusel (min 3).', 'lighting-configurator') . '</p>';
     }
 
+    public function render_enable_quick_cart_field()
+    {
+        $options = get_option(LIGHTING_CONFIGURATOR_OPTION, array());
+        $value = !empty($options['enable_quick_cart']) ? '1' : '0';
+        echo '<label><input type="checkbox" name="' . esc_attr(LIGHTING_CONFIGURATOR_OPTION) . '[enable_quick_cart]" value="1" ' . checked($value, '1', false) . ' /> ';
+        echo esc_html__('Afișează butonul de quick cart în configurator', 'lighting-configurator') . '</label>';
+    }
+
     public function sanitize_settings($input)
     {
         $output = array();
@@ -214,6 +237,7 @@ class Lighting_Configurator
         $output['allow_broad_recs'] = !empty($input['allow_broad_recs']) ? 1 : 0;
         $visible = isset($input['visible_count']) ? absint($input['visible_count']) : 4;
         $output['visible_count'] = min(6, max(3, $visible));
+        $output['enable_quick_cart'] = !empty($input['enable_quick_cart']) ? 1 : 0;
         return $output;
     }
 
@@ -224,6 +248,7 @@ class Lighting_Configurator
             'resultsLimit' => isset($options['results_limit']) ? (int) $options['results_limit'] : 50,
             'allowBroadRecs' => !empty($options['allow_broad_recs']),
             'visibleCount' => isset($options['visible_count']) ? (int) $options['visible_count'] : 4,
+            'enableQuickCart' => !empty($options['enable_quick_cart']),
         );
     }
 
@@ -372,6 +397,91 @@ class Lighting_Configurator
         ));
     }
 
+    public function render_product_specs_fields()
+    {
+        woocommerce_wp_text_input(array(
+            'id' => Lighting_Configurator_Meta::META_POWER_W,
+            'label' => __('Putere (W)', 'lighting-configurator'),
+            'type' => 'number',
+            'custom_attributes' => array(
+                'min' => 0,
+                'step' => '0.01',
+            ),
+        ));
+
+        woocommerce_wp_text_input(array(
+            'id' => Lighting_Configurator_Meta::META_LUMENS,
+            'label' => __('Flux luminos (lm)', 'lighting-configurator'),
+            'type' => 'number',
+            'custom_attributes' => array(
+                'min' => 0,
+                'step' => '1',
+            ),
+        ));
+
+        woocommerce_wp_text_input(array(
+            'id' => Lighting_Configurator_Meta::META_CRI,
+            'label' => __('Index redare culoare (CRI)', 'lighting-configurator'),
+            'type' => 'number',
+            'custom_attributes' => array(
+                'min' => 0,
+                'max' => 100,
+                'step' => '1',
+            ),
+        ));
+
+        woocommerce_wp_text_input(array(
+            'id' => Lighting_Configurator_Meta::META_IP_RATING,
+            'label' => __('Protecție IP', 'lighting-configurator'),
+            'type' => 'number',
+            'custom_attributes' => array(
+                'min' => 0,
+                'step' => '1',
+            ),
+        ));
+
+        woocommerce_wp_text_input(array(
+            'id' => Lighting_Configurator_Meta::META_HEIGHT_CM,
+            'label' => __('Înălțime (cm)', 'lighting-configurator'),
+            'type' => 'number',
+            'custom_attributes' => array(
+                'min' => 0,
+                'step' => '0.1',
+            ),
+        ));
+
+        woocommerce_wp_text_input(array(
+            'id' => Lighting_Configurator_Meta::META_LENGTH_CM,
+            'label' => __('Lungime (cm)', 'lighting-configurator'),
+            'type' => 'number',
+            'custom_attributes' => array(
+                'min' => 0,
+                'step' => '0.1',
+            ),
+        ));
+
+        woocommerce_wp_text_input(array(
+            'id' => Lighting_Configurator_Meta::META_DIAMETER_CM,
+            'label' => __('Diametru (cm)', 'lighting-configurator'),
+            'type' => 'number',
+            'custom_attributes' => array(
+                'min' => 0,
+                'step' => '0.1',
+            ),
+        ));
+
+        woocommerce_wp_select(array(
+            'id' => Lighting_Configurator_Meta::META_FUNCTION_TYPE,
+            'label' => __('Funcție', 'lighting-configurator'),
+            'options' => array(
+                '' => __('Selectează', 'lighting-configurator'),
+                'standard' => __('Standard', 'lighting-configurator'),
+                'dimmable' => __('Dimmable', 'lighting-configurator'),
+                'smart' => __('Smart', 'lighting-configurator'),
+            ),
+        ));
+    }
+
     public function save_product_kelvin_field($product)
     {
         if (isset($_POST[self::PRODUCT_KELVIN_META_KEY])) {
@@ -380,6 +490,23 @@ class Lighting_Configurator
                 $product->update_meta_data(self::PRODUCT_KELVIN_META_KEY, $value);
             } else {
                 $product->delete_meta_data(self::PRODUCT_KELVIN_META_KEY);
+            }
+        }
+    }
+
+    public function save_product_specs_fields($product)
+    {
+        $fields = Lighting_Configurator_Meta::get_meta_fields();
+        foreach ($fields as $key => $config) {
+            if (!isset($_POST[$key])) {
+                continue;
+            }
+            $raw = wp_unslash($_POST[$key]);
+            $value = call_user_func($config['sanitize'], $raw);
+            if ($value === '' || $value === null) {
+                $product->delete_meta_data($key);
+            } else {
+                $product->update_meta_data($key, $value);
             }
         }
     }
@@ -466,6 +593,75 @@ class Lighting_Configurator
         $html = ob_get_clean();
 
         wp_send_json_success(array('html' => $html));
+    }
+
+    public function ajax_get_cart_sidebar()
+    {
+        check_ajax_referer('lighting_configurator', 'nonce');
+        wp_send_json_success(array(
+            'html' => $this->render_cart_sidebar_items(),
+        ));
+    }
+
+    public function ajax_update_cart_sidebar()
+    {
+        check_ajax_referer('lighting_configurator', 'nonce');
+        if (!function_exists('WC') || !WC()->cart) {
+            wp_send_json_error(array('message' => 'Cart unavailable.'));
+        }
+
+        $items = isset($_POST['items']) && is_array($_POST['items']) ? $_POST['items'] : array();
+        foreach ($items as $item) {
+            $key = isset($item['key']) ? wc_clean(wp_unslash($item['key'])) : '';
+            $qty = isset($item['qty']) ? absint($item['qty']) : 0;
+            if (!$key) {
+                continue;
+            }
+            WC()->cart->set_quantity($key, $qty, true);
+        }
+
+        WC()->cart->calculate_totals();
+
+        wp_send_json_success(array(
+            'html' => $this->render_cart_sidebar_items(),
+        ));
+    }
+
+    private function render_cart_sidebar_items()
+    {
+        if (!function_exists('WC') || !WC()->cart) {
+            return '<p class="lc-cart-empty">' . esc_html__('Coșul nu este disponibil.', 'lighting-configurator') . '</p>';
+        }
+
+        if (WC()->cart->is_empty()) {
+            return '<p class="lc-cart-empty">' . esc_html__('Nu ai produse în coș.', 'lighting-configurator') . '</p>';
+        }
+
+        $items_html = '';
+        foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+            $product = $cart_item['data'];
+            if (!$product) {
+                continue;
+            }
+            $product_id = $cart_item['product_id'];
+            $name = $product->get_name();
+            $permalink = get_permalink($product_id);
+            $thumb = $product->get_image('thumbnail');
+            $price = WC()->cart->get_product_price($product);
+            $qty = isset($cart_item['quantity']) ? (int) $cart_item['quantity'] : 1;
+
+            $items_html .= '<div class="lc-cart-item" data-cart-key="' . esc_attr($cart_item_key) . '">';
+            $items_html .= '<a class="lc-cart-thumb" href="' . esc_url($permalink) . '" target="_blank" rel="noopener">' . $thumb . '</a>';
+            $items_html .= '<div class="lc-cart-info">';
+            $items_html .= '<a class="lc-cart-name" href="' . esc_url($permalink) . '" target="_blank" rel="noopener">' . esc_html($name) . '</a>';
+            $items_html .= '<div class="lc-cart-price">' . wp_kses_post($price) . '</div>';
+            $items_html .= '<label class="lc-cart-qty-label">' . esc_html__('Cantitate', 'lighting-configurator') . '</label>';
+            $items_html .= '<input type="number" class="lc-cart-qty" min="0" value="' . esc_attr($qty) . '"/>';
+            $items_html .= '</div>';
+            $items_html .= '</div>';
+        }
+
+        return $items_html;
     }
 
     private function sanitize_id_list($items)

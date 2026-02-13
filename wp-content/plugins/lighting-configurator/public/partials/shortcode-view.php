@@ -173,9 +173,9 @@ if (!defined('ABSPATH')) {
                 <div class="lc-pref-group">
                     <p class="lc-pref-title">Preferință temperatură lumină</p>
                     <div class="lc-style-strip" data-group="light-temp" data-multi="true">
-                        <button class="lc-style" type="button"><span class="lc-style-label">Warm</span></button>
-                        <button class="lc-style" type="button"><span class="lc-style-label">Neutral</span></button>
-                        <button class="lc-style" type="button"><span class="lc-style-label">Cool</span></button>
+                        <button class="lc-style" type="button"><span class="lc-style-label">Calda</span></button>
+                        <button class="lc-style" type="button"><span class="lc-style-label">Neutra</span></button>
+                        <button class="lc-style" type="button"><span class="lc-style-label">Rece</span></button>
                     </div>
                 </div>
 
@@ -281,4 +281,29 @@ if (!defined('ABSPATH')) {
             </div>
         </div>
     </div>
+    <?php
+    $lc_options = get_option(LIGHTING_CONFIGURATOR_OPTION, array());
+    $lc_quick_cart_enabled = !empty($lc_options['enable_quick_cart']);
+    ?>
+    <?php if ($lc_quick_cart_enabled) : ?>
+        <button class="lc-cart-fab" type="button" aria-label="<?php echo esc_attr__('Deschide coșul', 'lighting-configurator'); ?>">
+            <span class="lc-cart-fab-icon">🛒</span>
+        </button>
+        <aside class="lc-cart-drawer" aria-hidden="true">
+            <div class="lc-cart-drawer-header">
+                <h4><?php echo esc_html__('Produse în coș', 'lighting-configurator'); ?></h4>
+                <button class="lc-cart-drawer-close" type="button" aria-label="<?php echo esc_attr__('Închide', 'lighting-configurator'); ?>">×</button>
+            </div>
+            <div class="lc-cart-drawer-body">
+                <div class="lc-cart-loading"><?php echo esc_html__('Se încarcă...', 'lighting-configurator'); ?></div>
+            </div>
+            <div class="lc-cart-drawer-footer">
+                <button class="lc-cart-update" type="button"><?php echo esc_html__('Update cart', 'lighting-configurator'); ?></button>
+                <div class="lc-cart-links">
+                    <a href="<?php echo esc_url(wc_get_cart_url()); ?>" target="_blank" rel="noopener"><?php echo esc_html__('Go to cart', 'lighting-configurator'); ?></a>
+                    <a href="<?php echo esc_url(wc_get_checkout_url()); ?>" target="_blank" rel="noopener"><?php echo esc_html__('Go to checkout', 'lighting-configurator'); ?></a>
+                </div>
+            </div>
+        </aside>
+    <?php endif; ?>
 </section>
