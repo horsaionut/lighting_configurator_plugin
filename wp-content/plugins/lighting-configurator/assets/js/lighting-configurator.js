@@ -309,13 +309,18 @@
     $(document).on('click', '.lc-reco-bulk', function () {
         var $configurator = $(this).closest('.lc-configurator');
         var $selected = $configurator.find('.lc-reco-select:checked').closest('.lc-reco-card');
+        var ids = [];
         $selected.each(function () {
             var productId = $(this).data('product-id');
             if (!productId) {
                 return;
             }
-            addToCartAjax(productId, $configurator, $(this));
+            ids.push(productId);
         });
+        if (!ids.length) {
+            return;
+        }
+        bulkAddToCart(ids, $configurator);
     });
 
     $(document).on('click', '.lc-reco-cart', function (e) {
@@ -359,7 +364,7 @@
         }
     });
 
-    function addToCartAjax(productId, $configurator, $card) {
+    function addToCartAjax(productId, $configurator, $card, done) {
         if (typeof wc_add_to_cart_params === 'undefined') {
             window.location.href = '/?add-to-cart=' + productId;
             return;
@@ -383,7 +388,47 @@
                 }
                 $(document.body).trigger('added_to_cart', [response.fragments, response.cart_hash]);
                 refreshCartState($configurator);
+                if (typeof done === 'function') {
+                    done();
+                }
             },
+            error: function () {
+                if (typeof done === 'function') {
+                    done();
+                }
+            }
+        });
+    }
+
+    function addToCartQueue(queue, $configurator) {
+        if (!queue.length) {
+            return;
+        }
+        var item = queue.shift();
+        addToCartAjax(item.id, $configurator, item.card, function () {
+            addToCartQueue(queue, $configurator);
+        });
+    }
+
+    function bulkAddToCart(ids, $configurator) {
+        if (typeof LightingConfiguratorData === 'undefined') {
+            return;
+        }
+        $.ajax({
+            type: 'POST',
+            url: LightingConfiguratorData.ajaxUrl,
+            data: {
+                action: 'lc_bulk_add_to_cart',
+                nonce: LightingConfiguratorData.nonce,
+                ids: ids
+            },
+            success: function (response) {
+                if (!response || !response.success) {
+                    return;
+                }
+                refreshCartState($configurator);
+                refreshCartFragments();
+            }
         });
     }
 

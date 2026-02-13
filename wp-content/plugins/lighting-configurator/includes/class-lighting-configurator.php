@@ -38,6 +38,8 @@ class Lighting_Configurator
         add_action('wp_ajax_nopriv_lc_get_cart_sidebar', array($this, 'ajax_get_cart_sidebar'));
         add_action('wp_ajax_lc_update_cart_sidebar', array($this, 'ajax_update_cart_sidebar'));
         add_action('wp_ajax_nopriv_lc_update_cart_sidebar', array($this, 'ajax_update_cart_sidebar'));
+        add_action('wp_ajax_lc_bulk_add_to_cart', array($this, 'ajax_bulk_add_to_cart'));
+        add_action('wp_ajax_nopriv_lc_bulk_add_to_cart', array($this, 'ajax_bulk_add_to_cart'));
 
         $this->register_taxonomy_media_fields(Lighting_Configurator_Taxonomies::TAX_ROOM);
         $this->register_taxonomy_media_fields(Lighting_Configurator_Taxonomies::TAX_STYLE);
@@ -624,6 +626,34 @@ class Lighting_Configurator
 
         wp_send_json_success(array(
             'html' => $this->render_cart_sidebar_items(),
+        ));
+    }
+
+    public function ajax_bulk_add_to_cart()
+    {
+        check_ajax_referer('lighting_configurator', 'nonce');
+        if (!function_exists('WC') || !WC()->cart) {
+            wp_send_json_error(array('message' => 'Cart unavailable.'));
+        }
+
+        $ids = isset($_POST['ids']) && is_array($_POST['ids']) ? $_POST['ids'] : array();
+        $ids = array_values(array_filter(array_map('absint', $ids)));
+        if (empty($ids)) {
+            wp_send_json_error(array('message' => 'No products.'));
+        }
+
+        foreach ($ids as $product_id) {
+            $product = wc_get_product($product_id);
+            if (!$product || !$product->is_purchasable()) {
+                continue;
+            }
+            WC()->cart->add_to_cart($product_id, 1);
+        }
+
+        WC()->cart->calculate_totals();
+
+        wp_send_json_success(array(
+            'cart_map' => $this->get_cart_map(),
         ));
     }
 
