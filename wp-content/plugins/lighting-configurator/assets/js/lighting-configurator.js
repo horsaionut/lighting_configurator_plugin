@@ -366,7 +366,7 @@
 
     function addToCartAjax(productId, $configurator, $card, done) {
         if (typeof wc_add_to_cart_params === 'undefined') {
-            window.location.href = '/?add-to-cart=' + productId;
+            bulkAddToCart([productId], $configurator);
             return;
         }
 
@@ -382,8 +382,11 @@
                 if (!response) {
                     return;
                 }
-                if (response.error && response.product_url) {
-                    window.location = response.product_url;
+                if (response.error) {
+                    if ($card && $card.length) {
+                        setCardNotInCart($card);
+                    }
+                    refreshCartState($configurator);
                     return;
                 }
                 $(document.body).trigger('added_to_cart', [response.fragments, response.cart_hash]);

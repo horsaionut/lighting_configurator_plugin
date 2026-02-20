@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Lighting Configurator
  * Description: Multi-step lighting configurator with shortcode for WooCommerce products.
- * Version: 0.1.0
+ * Version: 1.1.0
  * Author: Your Name
  * Text Domain: lighting-configurator
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('LIGHTING_CONFIGURATOR_VERSION', '0.1.0');
+define('LIGHTING_CONFIGURATOR_VERSION', '1.1.0');
 define('LIGHTING_CONFIGURATOR_OPTION', 'lighting_configurator_settings');
 define('LIGHTING_CONFIGURATOR_PATH', plugin_dir_path(__FILE__));
 define('LIGHTING_CONFIGURATOR_URL', plugin_dir_url(__FILE__));

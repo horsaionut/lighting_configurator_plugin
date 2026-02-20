@@ -85,10 +85,15 @@ class Lighting_Configurator
             LIGHTING_CONFIGURATOR_VERSION
         );
 
+        $script_deps = array('jquery');
+        if (wp_script_is('wc-add-to-cart', 'registered')) {
+            $script_deps[] = 'wc-add-to-cart';
+        }
+
         wp_enqueue_script(
             'lighting-configurator',
             LIGHTING_CONFIGURATOR_URL . 'assets/js/lighting-configurator.js',
-            array('jquery'),
+            $script_deps,
             LIGHTING_CONFIGURATOR_VERSION,
             true
         );
@@ -644,7 +649,7 @@ class Lighting_Configurator
 
         foreach ($ids as $product_id) {
             $product = wc_get_product($product_id);
-            if (!$product || !$product->is_purchasable()) {
+            if (!$this->is_directly_addable_product($product)) {
                 continue;
             }
             WC()->cart->add_to_cart($product_id, 1);
@@ -754,7 +759,7 @@ class Lighting_Configurator
 
         foreach ($query->posts as $product_id) {
             $product = wc_get_product($product_id);
-            if (!$product) {
+            if (!$this->is_directly_addable_product($product)) {
                 continue;
             }
             $in_cart = isset($cart_map[$product_id]);
@@ -943,7 +948,7 @@ class Lighting_Configurator
         $results = array();
         foreach ($query->posts as $product_id) {
             $product = wc_get_product($product_id);
-            if (!$product) {
+            if (!$this->is_directly_addable_product($product)) {
                 continue;
             }
             $in_cart = isset($cart_map[$product_id]);
@@ -975,6 +980,23 @@ class Lighting_Configurator
         }
 
         return $map;
+    }
+
+    private function is_directly_addable_product($product)
+    {
+        if (!$product instanceof WC_Product) {
+            return false;
+        }
+
+        if ($product->get_type() !== 'simple') {
+            return false;
+        }
+
+        if (!$product->is_purchasable() || !$product->is_in_stock()) {
+            return false;
+        }
+
+        return true;
     }
 
     public function render_category_meta_add()
